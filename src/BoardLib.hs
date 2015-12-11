@@ -3,22 +3,22 @@
 module BoardLib where
 
 import Data.List (foldl')
-import Data.Vector.Generic (Vector(..))
+import Data.Vector (Vector(..), fromList)
 
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 
 -- | does not check if the move is valid
 -- 
-playMove :: Board -> Move -> Board
-playMove b@Board{..} A1  = b { a1 = Just turn, turn = next turn }
-playMove b@Board{..} A2  = b { a2 = Just turn, turn = next turn }
-playMove b@Board{..} A3  = b { a3 = Just turn, turn = next turn }
-playMove b@Board{..} B1  = b { b1 = Just turn, turn = next turn }
-playMove b@Board{..} B2  = b { b2 = Just turn, turn = next turn }
-playMove b@Board{..} B3  = b { b3 = Just turn, turn = next turn }
-playMove b@Board{..} C1  = b { c1 = Just turn, turn = next turn }
-playMove b@Board{..} C2  = b { c2 = Just turn, turn = next turn }
-playMove b@Board{..} C3  = b { c3 = Just turn, turn = next turn }
+playOn ::  Move -> Board -> Board
+playOn A1 b@Board{..} = b { a1 = Just turn, turn = next turn }
+playOn A2 b@Board{..} = b { a2 = Just turn, turn = next turn }
+playOn A3 b@Board{..} = b { a3 = Just turn, turn = next turn }
+playOn B1 b@Board{..} = b { b1 = Just turn, turn = next turn }
+playOn B2 b@Board{..} = b { b2 = Just turn, turn = next turn }
+playOn B3 b@Board{..} = b { b3 = Just turn, turn = next turn }
+playOn C1 b@Board{..} = b { c1 = Just turn, turn = next turn }
+playOn C2 b@Board{..} = b { c2 = Just turn, turn = next turn }
+playOn C3 b@Board{..} = b { c3 = Just turn, turn = next turn }
 
 next = succ
 
@@ -42,7 +42,7 @@ gameState b@Board{..}
 -- | checks validity by the changes on the on the board after the move
 --
 isValidOn :: Move -> Board -> Bool
-isValidOn move b@Board{..} = changes b /= changes (playMove b move)
+isValidOn move b@Board{..} = changes b /= changes (move `playOn` b)
   where changes b = foldl' go 0 [a1,a2,a3,b1,b2,b3,c1,c2,c3]
 
         go acc Nothing = acc + 1
@@ -90,3 +90,21 @@ toMove 'G' = C1
 toMove 'H' = C2
 toMove 'I' = C3
 toMove  x  = error ("could not find the move: <" ++ x:">")
+
+
+-- toBoardVector :: String -> Vector Board
+toBoardVector input = go (lines input) []
+  where -- go :: [String] -> [String] -> Vector Board
+        go []     acc = fromList acc
+        go (x:xs) acc = go xs (toBoard x : acc)
+
+        toBoard :: String -> Board
+        toBoard [a1, a2, a3, b1, b2, b3, c1, c2, c3] = Board { a1 = toV a1, a2 = toV a2, a3 = toV a3
+                                                             , b1 = toV b1, b2 = toV b2, b3 = toV b3
+                                                             , c1 = toV c1, c2 = toV c2, c3 = toV c3
+                                                             , turn = X }
+
+        toV :: Char -> Maybe Value
+        toV 'X' = Just X
+        toV 'O' = Just O
+        toV '_' = Nothing

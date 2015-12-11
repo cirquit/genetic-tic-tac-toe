@@ -5,7 +5,7 @@ module Player where
 import Data.Vector (Vector(..), elemIndex)
 
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
-import BoardLib (playMove, emptyBoard, rotate, toMove, gameState, isValidOn)
+import BoardLib (playOn, emptyBoard, rotate, toMove, gameState, isValidOn)
 
 newtype Player = Player String
 
@@ -13,7 +13,7 @@ getMove :: Player -> Int -> Move
 getMove (Player str) i = toMove (str !! i)
 
 nextMove :: Vector Board -> Player -> Board -> (Bool, Board)
-nextMove v player board = (move `isValidOn` board, playMove board move)
+nextMove v player board = (move `isValidOn` board, move `playOn` board)
   where 
         move  = getMove player index
         index = tryRotations (rotate board) v
