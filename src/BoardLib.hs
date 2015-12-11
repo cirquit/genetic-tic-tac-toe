@@ -1,7 +1,9 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, ImplicitParams #-}
+
 module BoardLib where
 
 import Data.List (foldl')
+import Data.Vector.Generic (Vector(..))
 
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 
@@ -52,17 +54,39 @@ emptyBoard :: Board
 emptyBoard = Board e e e  e e e  e e e  X
   where e = Nothing
 
+
+-- | 
+
+rotate :: Board -> [Board]
+rotate b0 = [b0, b1, b2, b3, b4, b5, b6, b7]
+  where b1 = cw b0
+        b2 = cw b1
+        b3 = cw b2
+        b4 = mirror b0
+        b5 = cw b4
+        b6 = cw b5
+        b7 = cw b6
+
+cw :: Board -> Board
+cw b@Board{..} = b { a1 = c1, a2 = b1, a3 = a1
+                   , b1 = c2         , b3 = a2
+                   , c1 = c3, c2 = b3, c3 = a3 }
+
+mirror :: Board -> Board
+mirror b@Board{..} = b { a1 = a3         , a3 = a1
+                       , b1 = b3         , b3 = b1
+                       , c1 = c3         , c3 = c1 }
+
 -- | later used by gen. alg.
 --
-decodeMove :: Char -> Move
-decodeMove 'A' = A1
-decodeMove 'B' = A2
-decodeMove 'C' = A3
-decodeMove 'D' = B1
-decodeMove 'E' = B2
-decodeMove 'F' = B3
-decodeMove 'G' = C1
-decodeMove 'H' = C2
-decodeMove 'I' = C3
-
-
+toMove :: Char -> Move
+toMove 'A' = A1
+toMove 'B' = A2
+toMove 'C' = A3
+toMove 'D' = B1
+toMove 'E' = B2
+toMove 'F' = B3
+toMove 'G' = C1
+toMove 'H' = C2
+toMove 'I' = C3
+toMove  x  = error ("could not find the move: <" ++ x:">")

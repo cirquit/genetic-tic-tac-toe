@@ -24,3 +24,7 @@ main = putStrLn "Hello World"
 
 -- main :: IO ()
 -- main = playGame emptyBoard
+
+--    let boardmap = readFile 
+
+
