@@ -18,7 +18,7 @@ import BoardLib   (toBoardVector)
 
 -- |             Size 
 genIndividual :: Int -> StdGen -> (Player, StdGen)
-genIndividual len g = let player  = Player (take len (randomRs ('A', 'I') g)) 1
+genIndividual len g = let player  = Player (take len (randomRs ('A', 'I') g)) 1 1
                           (g', _) = split g
                       in (player, g')
 
@@ -50,12 +50,12 @@ mutate = go []
 --
 --                                         β
           mutateP :: Player -> StdGen -> Double -> (Player, StdGen)
-          mutateP (Player l fit) = go ([], fit) l
-            where go :: (String, Int) -> String -> StdGen -> Double -> (Player, StdGen)
-                  go (acc, fit)     [] g    _ = ((Player (reverse acc) fit), g)
-                  go (acc, fit) (x:xs) g beta 
-                      | beta >= v = go ((c:acc), fit) xs g'' beta
-                      | otherwise = go ((x:acc), fit) xs g'  beta
+          mutateP (Player l fit games) = go ([], fit, games) l
+            where go :: (String, Int, Int) -> String -> StdGen -> Double -> (Player, StdGen)
+                  go (acc, fit, games)     [] g    _ = ((Player (reverse acc) fit games), g)
+                  go (acc, fit, games) (x:xs) g beta 
+                      | beta >= v = go ((c:acc), fit, games) xs g'' beta
+                      | otherwise = go ((x:acc), fit, games) xs g'  beta
                     where (v, g' ) = randomR (0.0, 1.0) g
                           (c, g'') = randomR ('A', 'I') g'
 
@@ -95,11 +95,13 @@ crossover alpha g players     = (sortByDescFitness (rest ++ children), g')
 -- chooses from the father-string or the mother-string based on the fitness ratio for every char
 --
 crossoverP :: StdGen -> Player -> Player -> (Player, StdGen)
-crossoverP g (Player str1 fit1) (Player str2 fit2) = (Player str3 fit3, g')
+crossoverP g (Player str1 fit1 games1) (Player str2 fit2 games2) = (Player str3 fit3 games3, g')
 
-    where (str3, g') = go [] (fromIntegral fit1 / fromIntegral (fit1 + fit2)) g (zip str1 str2)
-          fit3       = (fit1 + fit2) `div` 2
-
+    where (str3, g') = go [] beta g (zip str1 str2)
+          fit3       = (fit1 + fit2)     `div` 2
+          games3     = (games1 + games2) `div` 2
+          beta       = (((toD fit1) / (toD games1)) + ((toD fit2) / (toD games2))) / 2
+          toD        = fromIntegral
 --                           β
           go :: String -> Double -> StdGen -> [(Char , Char)] -> (String, StdGen)
           go acc    _ g [] = (reverse acc, g)

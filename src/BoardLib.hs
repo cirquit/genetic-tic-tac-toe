@@ -101,10 +101,15 @@ toBoardVector input = go (lines input) []
         go (x:xs) !acc = go xs (toBoard x : acc)
 
         toBoard :: String -> Board
-        toBoard [a1, a2, a3, b1, b2, b3, c1, c2, c3] = Board { a1 = toV a1, a2 = toV a2, a3 = toV a3
+        toBoard l@[a1, a2, a3, b1, b2, b3, c1, c2, c3] = Board { a1 = toV a1, a2 = toV a2, a3 = toV a3
                                                              , b1 = toV b1, b2 = toV b2, b3 = toV b3
                                                              , c1 = toV c1, c2 = toV c2, c3 = toV c3
-                                                             , turn = X }
+                                                             , turn = turn' }
+
+            where turn' 
+                      | even underscores = X
+                      | otherwise        = O
+                    where underscores = foldl' (\acc e -> if e == '_' then acc - 1 else acc) 9 l
 
         toV :: Char -> Maybe Value
         toV 'X' = Just X

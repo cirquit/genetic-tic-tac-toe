@@ -18,7 +18,7 @@ import BoardTypes
 -- fill up with randoms until gensize (100) -> length players = 100
 
 
-popsize      = 70
+popsize      = 5
 stringlength = 850
 delta        = 0.01    -- chance to mutate
 beta         = 0.1     -- percent of the string to mutate
@@ -31,11 +31,11 @@ main = do
         boardV <- createBoardPositions "lib/tictactoeCombos827.txt"
         let g0           = mkStdGen 123456
             (pop, g1)    = genIndividuals popsize stringlength g0
-        loop' boardV pop g1 100
+        loop' boardV pop g1 2
 
 playMe :: String -> IO ()
 playMe str = do
-    let p = Player str 1
+    let p = Player str 1 1
     boardV <- createBoardPositions "lib/tictactoeCombos827.txt"
     playAI boardV emptyBoard p 0
 
