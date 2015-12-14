@@ -2,20 +2,26 @@
 
 module BoardTypes where
 
--- Board defintions
+-- | Board defintions
 
 data Board = Board { a1 :: Maybe Value , a2 :: Maybe Value , a3 :: Maybe Value
                    , b1 :: Maybe Value , b2 :: Maybe Value , b3 :: Maybe Value
                    , c1 :: Maybe Value , c2 :: Maybe Value , c3 :: Maybe Value
                    , turn :: Value }
-    deriving Eq
+
+instance Eq Board where
+  (Board a1 a2 a3  b1 b2 b3  c1 c2 c3 _) == (Board a1' a2' a3'  b1' b2' b3'  c1' c2' c3' _) = a1 == a1' && a2 == a2' && a3 == a3'
+                                                                                           && b1 == b1' && b2 == b2' && b3 == b3'
+                                                                                           && c1 == c1' && c2 == c2' && c3 == c3'
 
 instance Show Board where
-  show Board{..} = unlines [sep, row1, sep, row2, sep, row3, sep]
-    where sep = " ----------- "
-          row1 = unwords ["|", showMV a1, "|", showMV a2, "|", showMV a3, "|"] 
-          row2 = unwords ["|", showMV b1, "|", showMV b2, "|", showMV b3, "|"] 
-          row3 = unwords ["|", showMV c1, "|", showMV c2, "|", showMV c3, "|"] 
+  show Board{..} = unlines [sturn, sep, row1, sep, row2, sep, row3, sep]
+    where sep =   " ----------- "
+          sturn = " -- Turn " ++ show (succ turn) ++ " - "
+          row1  = unwords ["|", showMV a1, "|", showMV a2, "|", showMV a3, "|"] 
+          row2  = unwords ["|", showMV b1, "|", showMV b2, "|", showMV b3, "|"] 
+          row3  = unwords ["|", showMV c1, "|", showMV c2, "|", showMV c3, "|"]
+
 
 showMV :: Maybe Value -> String
 showMV (Just v) = show v
@@ -52,3 +58,4 @@ instance Bounded Move where
 -- | Result defintions
 
 data Result a = Win a | Tie | Ongoing
+  deriving Show

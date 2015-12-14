@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms, ImplicitParams #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, ImplicitParams, BangPatterns #-}
 
 module BoardLib where
 
@@ -42,8 +42,9 @@ gameState b@Board{..}
 -- | checks validity by the changes on the on the board after the move
 --
 isValidOn :: Move -> Board -> Bool
-isValidOn move b@Board{..} = changes b /= changes (move `playOn` b)
-  where changes b = foldl' go 0 [a1,a2,a3,b1,b2,b3,c1,c2,c3]
+isValidOn move b = changes b /= changes (move `playOn` b)
+    where
+        changes b@Board{..} = foldl' go 0 [a1,a2,a3,b1,b2,b3,c1,c2,c3]
 
         go acc Nothing = acc + 1
         go acc _       = acc
@@ -92,11 +93,12 @@ toMove 'I' = C3
 toMove  x  = error ("could not find the move: <" ++ x:">")
 
 
--- toBoardVector :: String -> Vector Board
+toBoardVector :: String -> Vector Board
 toBoardVector input = go (lines input) []
-  where -- go :: [String] -> [String] -> Vector Board
-        go []     acc = fromList acc
-        go (x:xs) acc = go xs (toBoard x : acc)
+  where 
+        go :: [String] -> [Board] -> Vector Board
+        go []     !acc = fromList acc
+        go (x:xs) !acc = go xs (toBoard x : acc)
 
         toBoard :: String -> Board
         toBoard [a1, a2, a3, b1, b2, b3, c1, c2, c3] = Board { a1 = toV a1, a2 = toV a2, a3 = toV a3
@@ -108,3 +110,6 @@ toBoardVector input = go (lines input) []
         toV 'X' = Just X
         toV 'O' = Just O
         toV '_' = Nothing
+
+createBoardPositions :: FilePath -> IO (Vector Board)
+createBoardPositions fp = readFile fp >>= (return . toBoardVector)

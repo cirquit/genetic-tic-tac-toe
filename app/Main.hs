@@ -1,30 +1,19 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, ImplicitParams #-}
 module Main where
 
 import Control.Monad
-import BoardTypes (Board(..), Move(..), Value(..))
-import BoardLib
+import System.Random (mkStdGen)
+import Data.Vector
+import Genetic  -- (genIndividual, genIndividuals)
+import Player --   (play,playIO)
+import BoardLib -- (createBoardPositions)
+import BoardTypes
 
 main :: IO ()
-main = putStrLn "Hello World"
-
--- playGame :: Board -> IO ()
--- playGame b@Board{..} = do
---     let (fin, winner) = finished b
---     when fin $ putStrLn $ show winner ++ " won!"
--- 
---     putStr $ "Turn " ++ show turn ++ ": "
---     move <- getLine
---     case isValid b move of
---         False -> putStrLn "Not a valid input, try again!" >> playGame b
---         _     -> let b' = (playMove b (read move)) in
---                  print b' >> playGame b'
-
-
-
--- main :: IO ()
--- main = playGame emptyBoard
-
---    let boardmap = readFile 
-
-
+main = do
+    boardV <- createBoardPositions "lib/tictactoeCombos827.txt"
+    let g = mkStdGen 27
+        ([p1, p2], _) = genIndividuals 2 850 g
+    -- r <- return $ play boardV p1 p2
+    r <- playIO boardV p1 p2
+    print r
