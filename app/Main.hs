@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms, ImplicitParams #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms #-}
 module Main where
 
 import Control.Monad

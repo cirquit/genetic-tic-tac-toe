@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms, ImplicitParams, BangPatterns #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns #-}
 
 module BoardLib where
 
