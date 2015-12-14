@@ -3,11 +3,18 @@
 module Genetic where
 
 import Data.Vector (Vector(..), fromList)
+import Data.List   (foldl', genericLength, splitAt)
 import System.Random
 
-import Player     (Player(..))
+import Player     (Player(..), sortByDescFitness)
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 import BoardLib   (toBoardVector)
+
+-- Let gensize (100) Players play vs each other  -> ([Player], StdGen)  <=> length players = 100
+-- crossover 10% best percent          -> ([Player], StdGen)  <=> length players = 105
+-- mutation                            --  same as above
+-- natural selection 20% worst percent -> length players = 84 (105 - (105 * 0.2))
+-- fill up with randoms until gensize (100) -> length players = 100
 
 -- |             Size 
 genIndividual :: Int -> StdGen -> (Player, StdGen)
@@ -53,13 +60,33 @@ mutate = go []
                           (c, g'') = randomR ('A', 'I') g'
 
 
-
--- | 
+-- | fills up the player list with new individuals up to the population size
 --
--- α = percent to be crossbred, creates α/2 new population
+--                        Population Size    String Length
+repopulate :: [Player] -> Int             -> Int           -> StdGen -> ([Player], StdGen)
+repopulate players size len g = (players ++ pop, g')
+    where tocreate  = size - length players
+          (pop, g') = genIndividuals tocreate len g
+
+
+-- | θ = percent to be removed by natural selection
 -- 
---             α         
--- crossover :: Double -> StdGen -> [Player] -> 
+--                    θ
+naturalselection :: Double -> [Player] -> [Player]
+naturalselection tetha players = take best players
+    where best = length players - round (tetha * genericLength players)
+
+
+-- |  α = percent to be crossbred, creates α/2 new population
+-- 
+--                α         
+crossover :: Double -> StdGen -> [Player] -> ([Player], StdGen)
+crossover alpha g players     = (sortByDescFitness (rest ++ children), g')
+  where best                  = round (alpha * genericLength players) :: Int
+        (parents, rest)       = splitAt best players
+        (children, g')        = foldl' go ([], g) (zip parents (tail parents))
+            where go (acc, g) (p1, p2)  = (child : acc, g')
+                      where (child, g') = crossoverP g p1 p2
 
 -- | Creates a crossover between two individuals by comparing win chances
 --
@@ -68,9 +95,10 @@ mutate = go []
 -- chooses from the father-string or the mother-string based on the fitness ratio for every char
 --
 crossoverP :: StdGen -> Player -> Player -> (Player, StdGen)
-crossoverP g (Player str1 fit1) (Player str2 fit2) = ((Player str3 ((fit1 + fit2) `div` 2)), g')
+crossoverP g (Player str1 fit1) (Player str2 fit2) = (Player str3 fit3, g')
 
     where (str3, g') = go [] (fromIntegral fit1 / fromIntegral (fit1 + fit2)) g (zip str1 str2)
+          fit3       = (fit1 + fit2) `div` 2
 
 --                           β
           go :: String -> Double -> StdGen -> [(Char , Char)] -> (String, StdGen)
@@ -79,21 +107,3 @@ crossoverP g (Player str1 fit1) (Player str2 fit2) = ((Player str3 ((fit1 + fit2
                 | beta >= v = go (x:acc) beta g' xs
                 | otherwise = go (y:acc) beta g' xs
               where (v, g') = randomR (0.0, 1.0) g
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

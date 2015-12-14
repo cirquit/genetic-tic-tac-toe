@@ -97,7 +97,7 @@ toBoardVector :: String -> Vector Board
 toBoardVector input = go (lines input) []
   where 
         go :: [String] -> [Board] -> Vector Board
-        go []     !acc = fromList acc
+        go []     !acc = fromList (reverse acc)
         go (x:xs) !acc = go xs (toBoard x : acc)
 
         toBoard :: String -> Board
