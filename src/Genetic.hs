@@ -9,7 +9,7 @@ import Player     (Player(..))
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 import BoardLib   (toBoardVector)
 
--- |            Size 
+-- |             Size 
 genIndividual :: Int -> StdGen -> (Player, StdGen)
 genIndividual len g = let player  = Player (take len (randomRs ('A', 'I') g)) 1
                           (g', _) = split g
@@ -25,6 +25,7 @@ genIndividuals = go []
                               in go (res : acc) (size - 1) len g'
 
 -- | mutates every player with δ chance, mutation β percent of the string
+--   currently no fitness adjusting
 --
 -- δ = chance to mutate
 -- β = percent of the string to mutate
@@ -52,15 +53,22 @@ mutate = go []
                           (c, g'') = randomR ('A', 'I') g'
 
 
+
+-- | 
+--
+-- α = percent to be crossbred, creates α/2 new population
+-- 
+--             α         
+-- crossover :: Double -> StdGen -> [Player] -> 
+
 -- | Creates a crossover between two individuals by comparing win chances
 --
 -- β = percent of the string to mutate
 -- 
--- chooses the father-string or the mother-string based on the fitness ratio for every char
--- 
+-- chooses from the father-string or the mother-string based on the fitness ratio for every char
 --
-crossover :: StdGen -> Player -> Player -> (Player, StdGen)
-crossover g (Player str1 fit1) (Player str2 fit2) = ((Player str3 ((fit1 + fit2) `div` 2)), g')
+crossoverP :: StdGen -> Player -> Player -> (Player, StdGen)
+crossoverP g (Player str1 fit1) (Player str2 fit2) = ((Player str3 ((fit1 + fit2) `div` 2)), g')
 
     where (str3, g') = go [] (fromIntegral fit1 / fromIntegral (fit1 + fit2)) g (zip str1 str2)
 

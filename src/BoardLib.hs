@@ -68,17 +68,17 @@ rotate b0 = [b0, b1, b2, b3, b4, b5, b6, b7]
         b6 = cw b5
         b7 = cw b6
 
-cw :: Board -> Board
-cw b@Board{..} = b { a1 = c1, a2 = b1, a3 = a1
-                   , b1 = c2         , b3 = a2
-                   , c1 = c3, c2 = b3, c3 = a3 }
+        cw :: Board -> Board
+        cw b@Board{..} = b { a1 = c1, a2 = b1, a3 = a1
+                           , b1 = c2         , b3 = a2
+                           , c1 = c3, c2 = b3, c3 = a3 }
+        
+        mirror :: Board -> Board
+        mirror b@Board{..} = b { a1 = a3         , a3 = a1
+                               , b1 = b3         , b3 = b1
+                               , c1 = c3         , c3 = c1 }
 
-mirror :: Board -> Board
-mirror b@Board{..} = b { a1 = a3         , a3 = a1
-                       , b1 = b3         , b3 = b1
-                       , c1 = c3         , c3 = c1 }
-
--- | later used by gen. alg.
+-- | 
 --
 toMove :: Char -> Move
 toMove 'A' = A1

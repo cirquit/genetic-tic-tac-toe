@@ -14,7 +14,7 @@ data Player = Player { str :: String, fitness :: Int }
 getMove :: Player -> Int -> Move
 getMove (Player str _) i = toMove (str !! i)
 
-nextMove :: Vector Board -> Player -> Board -> (Bool, Move,  Board)
+nextMove :: Vector Board -> Player -> Board -> (Bool, Move, Board)
 nextMove v player board = (move `isValidOn` board, move, move `playOn` board)
   where 
         move  = getMove player index
@@ -54,4 +54,3 @@ playIO boardV p1 p2 = playGame boardV p1 p2 emptyBoard
                 (False, move, b') -> putStrLn (show move ++ " is invalid") >> return (Win (prev turn))
 
         prev = succ
-
