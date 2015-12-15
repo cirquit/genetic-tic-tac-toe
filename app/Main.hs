@@ -11,15 +11,20 @@ import Player --   (play,playIO)
 import BoardLib -- (createBoardPositions)
 import BoardTypes
 
--- Let gensize (100) Players play vs each other  -> ([Player], StdGen)  <=> length players = 100
--- crossover 10% best percent          -> ([Player], StdGen)  <=> length players = 105
--- mutation                            --  same as above
--- natural selection 20% worst percent -> length players = 84 (105 - (105 * 0.2))
--- fill up with randoms until gensize (100) -> length players = 100
+-- Let gensize (100) Players play vs each other
+-- crossover according to alpha
+-- mutation  according to delta + beta
 
+-- CO + MU creates new children population
+-- Children population is being evaluated
+
+-- Sort the children population and parent population by fitness
+-- Natural selection removed individuals according to tetha
+
+-- Fill up the remaining spots
 
 popsize      = 100
-stringlength = 850
+stringlength = 827
 delta        = 0.01    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
 tetha        = 0.5     -- percent to be removed by natural selection
@@ -44,7 +49,7 @@ loop' v pop g1 0 = mapM_ (putStrLn . str) (take 10 pop)
 loop' v pop g1 n = do
             let !playedpop      = populationPlay v pop
                 !natpop         = naturalselection tetha playedpop
-                (!crosspop,g2)  = crossover alpha g1 natpop
+                (!crosspop,g2)  = alphaCrossover alpha g1 natpop
                 (!mutpop, g3)   = mutate delta beta g2 crosspop
                 (pop', g4)      = repopulate mutpop popsize stringlength g3
             mapM_ print pop'
@@ -61,7 +66,7 @@ loop v pop g1 = do
     case input of
         "y" -> do
             let !playedpop      = populationPlay v pop
-                (!crosspop,g2)  = crossover alpha g1 playedpop
+                (!crosspop,g2)  = alphaCrossover alpha g1 playedpop
                 (!mutpop, g3)   = mutate delta beta g2 crosspop
                 !natpop         = naturalselection tetha mutpop
                 (pop', g4)      = repopulate natpop popsize stringlength g3

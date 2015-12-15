@@ -10,12 +10,6 @@ import Player     (Player(..), sortByDescFitness)
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 import BoardLib   (toBoardVector)
 
--- Let gensize (100) Players play vs each other  -> ([Player], StdGen)  <=> length players = 100
--- crossover 10% best percent          -> ([Player], StdGen)  <=> length players = 105
--- mutation                            --  same as above
--- natural selection 20% worst percent -> length players = 84 (105 - (105 * 0.2))
--- fill up with randoms until gensize (100) -> length players = 100
-
 -- |             Size 
 genIndividual :: Int -> StdGen -> (Player, StdGen)
 genIndividual len g = let player  = Player (take len (randomRs ('A', 'I') g)) 0 1
@@ -32,7 +26,7 @@ genIndividuals = go []
                               in go (res : acc) (size - 1) len g'
 
 -- | mutates every player with δ chance, mutation β percent of the string
---   currently no fitness adjusting
+--   no fitness adjusting
 --
 -- δ = chance to mutate
 -- β = percent of the string to mutate
@@ -73,20 +67,75 @@ repopulate players size len g = (players ++ pop, g')
 -- 
 --                    θ
 naturalselection :: Double -> [Player] -> [Player]
-naturalselection tetha players = take best players
+naturalselection tetha players = take best (sortByDescFitness players)
     where best = length players - round (tetha * genericLength players)
 
 
--- |  α = percent to be crossbred, creates α/2 new population
+-- |  α = percent to be crossbred, creates (α * length) - 1 new population
 -- 
 --                α         
-crossover :: Double -> StdGen -> [Player] -> ([Player], StdGen)
-crossover alpha g players     = (sortByDescFitness (rest ++ children), g')
+alphaCrossover :: Double -> StdGen -> [Player] -> ([Player], StdGen)
+alphaCrossover alpha g players     = (sortByDescFitness (rest ++ children), g')
   where best                  = round (alpha * genericLength players) :: Int
         (parents, rest)       = splitAt best players
         (children, g')        = foldl' go ([], g) (zip parents (tail parents))
             where go (acc, g) (p1, p2)  = (child : acc, g')
-                      where (child, g') = crossoverP g p1 p2
+                      where (child, g') = fitnessCrossoverP g p1 p2
+
+
+-- roulettecrossover :: Double -> StdGen -> [Player] -> ([Player], StdGen)
+-- roulettecrossover alpha g players = 
+
+
+
+-- | 
+
+onePointCrossoverP :: StdGen -> Player -> Player -> (Player, Player, StdGen)
+onePointCrossoverP g p1 p2 = (p3, p4, g')
+    where (percent , g' ) = randomR (0.0, 1.0) g
+
+          len          = genericLength (str p1) :: Double
+
+          (p1A , p1B)  = splitAt (round (percent * len)) (str p1)
+          (p2A , p2B)  = splitAt (round (percent * len)) (str p2)
+
+          p3 = Player (p1A ++ p2B) 0 1
+          p4 = Player (p2A ++ p1B) 0 1
+
+
+twoPointCrossoverP :: StdGen -> Player -> Player -> (Player, Player, StdGen)
+twoPointCrossoverP g p1 p2 = (p3, p4, g'')
+    where (point1, g' ) = randomR (0.0, 1.0) g
+          (point2, g'') = randomR (0.0, 1.0) g'
+
+          len           = genericLength (str p1) :: Double
+
+          (p1A, p1Rest) = splitAt (round (point1 * len)) (str p1)
+          (p2A, p2Rest) = splitAt (round (point1 * len)) (str p2)
+
+          sublen        = genericLength (p1Rest) :: Double
+
+          (p1B, p1C) = splitAt (round (point2 * sublen)) p1Rest
+          (p2B, p2C) = splitAt (round (point2 * sublen)) p2Rest
+
+          p3 = Player (p1A ++ p2B ++ p1C) 0 1
+          p4 = Player (p2A ++ p1B ++ p2C) 0 1
+
+
+-- | If the players have a strings with different lengths, the children will have the both a string with the lesser length
+
+uniformCrossover :: StdGen -> Player -> Player -> (Player, Player, StdGen)
+uniformCrossover g p1 p2 = (p3, p4, g')
+  where (p3, p4, g') = go ([],[]) g (zip (str p1) (str p2))
+
+        go :: (String, String) -> StdGen -> [(Char, Char)] -> (Player, Player, StdGen)
+        go (p3str, p4str) g            [] = (Player (reverse p3str) 0 1, Player (reverse p4str) 0 1, g)
+        go (p3str, p4str) g ((c1, c2):xs)
+              | v >= 0.5  = go (c1:p3str, c2:p4str) g' xs
+              | otherwise = go (c2:p3str, c1:p4str) g' xs
+            where (v, g') = randomR (0.0, 1.0) g :: (Double, StdGen)
+
+
 
 -- | Creates a crossover between two individuals by comparing win chances
 --
@@ -94,8 +143,8 @@ crossover alpha g players     = (sortByDescFitness (rest ++ children), g')
 -- 
 -- chooses from the father-string or the mother-string based on the fitness ratio for every char
 --
-crossoverP :: StdGen -> Player -> Player -> (Player, StdGen)
-crossoverP g (Player str1 fit1 games1) (Player str2 fit2 games2) = (Player str3 fit3 games3, g')
+fitnessCrossoverP :: StdGen -> Player -> Player -> (Player, StdGen)
+fitnessCrossoverP g (Player str1 fit1 games1) (Player str2 fit2 games2) = (Player str3 fit3 games3, g')
 
     where (str3, g') = go [] beta g (zip str1 str2)
           fit3       = (fit1 + fit2)     `div` 2
