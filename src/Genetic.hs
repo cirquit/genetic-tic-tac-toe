@@ -18,7 +18,7 @@ import BoardLib   (toBoardVector)
 
 -- |             Size 
 genIndividual :: Int -> StdGen -> (Player, StdGen)
-genIndividual len g = let player  = Player (take len (randomRs ('A', 'I') g)) 1 1
+genIndividual len g = let player  = Player (take len (randomRs ('A', 'I') g)) 0 1
                           (g', _) = split g
                       in (player, g')
 

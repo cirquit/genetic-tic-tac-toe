@@ -18,12 +18,12 @@ import BoardTypes
 -- fill up with randoms until gensize (100) -> length players = 100
 
 
-popsize      = 5
+popsize      = 100
 stringlength = 850
 delta        = 0.01    -- chance to mutate
-beta         = 0.1     -- percent of the string to mutate
-tetha        = 0.2     -- percent to be removed by natural selection
-alpha        = 0.1     -- percent to be crossbred -> equals alpha/2 children
+beta         = 0.05    -- percent of the string to mutate
+tetha        = 0.5     -- percent to be removed by natural selection
+alpha        = 1.0     -- percent to be crossbred -> equals alpha/2 children
 
 
 main :: IO ()
@@ -31,7 +31,7 @@ main = do
         boardV <- createBoardPositions "lib/tictactoeCombos827.txt"
         let g0           = mkStdGen 123456
             (pop, g1)    = genIndividuals popsize stringlength g0
-        loop' boardV pop g1 2
+        loop' boardV pop g1 124
 
 playMe :: String -> IO ()
 playMe str = do
@@ -40,13 +40,13 @@ playMe str = do
     playAI boardV emptyBoard p 0
 
 loop' :: V.Vector Board -> [Player] -> StdGen -> Int -> IO ()
-loop' v pop g1 0 = mapM_ (putStrLn . str) (take 5 pop)
+loop' v pop g1 0 = mapM_ (putStrLn . str) (take 10 pop)
 loop' v pop g1 n = do
             let !playedpop      = populationPlay v pop
-                (!crosspop,g2)  = crossover alpha g1 playedpop
+                !natpop         = naturalselection tetha playedpop
+                (!crosspop,g2)  = crossover alpha g1 natpop
                 (!mutpop, g3)   = mutate delta beta g2 crosspop
-                !natpop         = naturalselection tetha mutpop
-                (pop', g4)      = repopulate natpop popsize stringlength g3
+                (pop', g4)      = repopulate mutpop popsize stringlength g3
             mapM_ print pop'
             putStrLn "\n New Generation \n"
             loop' v pop' g4 (n-1)
