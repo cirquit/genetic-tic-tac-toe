@@ -19,6 +19,7 @@ library
                      , BoardLib
                      , Player
                      , Genetic
+                     , Crossover
   build-depends:       base >= 4.7 && < 5
                      , vector
                      , random
