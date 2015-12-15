@@ -3,15 +3,15 @@
 module Player where
 
 import Data.Vector as V (Vector(..), elemIndex, (!), length)
-import Debug.Trace (trace)
-import Data.List   (foldl', genericLength, sortBy)
-import Data.Ord    (comparing)
-import Data.Function (on)
+import Debug.Trace      (trace)
+import Data.List        (foldl', genericLength, sortBy)
+import Data.Ord         (comparing)
+import Data.Function    (on)
 import System.Random
 
 
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
-import BoardLib (playOn, emptyBoard, rotate, toMove, gameState, isValidOn)
+import BoardLib   (playOn, emptyBoard, rotate, toMove, gameState, isValidOn)
 
 data Player = Player { str :: String, fitness :: Int, games :: Int }
   deriving Eq
@@ -131,14 +131,13 @@ sumRatios :: [Player] -> Double
 sumRatios = foldl (\acc x -> acc + ratio x) 0.0
 
 
-
 ascendingPieChart :: [Player] -> [(Player, Double)]
 ascendingPieChart players = foldl (\acc x -> (x, ratio x / sumR) : acc) [] descPlayers
     where sumR        = sumRatios players
           descPlayers = sortByDscRatio players
 
--- | gets an ascending pieChart and returns two unique players
-
+-- | gets an ascending pieChart and returns two semi-random unique players
+--
 getUniquePlayers :: StdGen -> [(Player, Double)] -> (Player, Player, StdGen)
 getUniquePlayers g l = go p1 g' l
   where

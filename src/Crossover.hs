@@ -9,6 +9,14 @@ import System.Random
 
 import Player
 
+-- | roulette crossover with variable tactic
+--
+-- * onePointCrossover
+-- * twoPointCrossover
+-- * uniformCrossover 
+-- 
+-- Creates a pie chart based on the overall wins / games played ratio
+-- 
 rouletteCrossover :: CrossoverTactic -> StdGen -> [Player] -> ([Player], StdGen)
 rouletteCrossover tactic g players = go [] (length players) g ascPieChart
   where 
@@ -25,6 +33,16 @@ rouletteCrossover tactic g players = go [] (length players) g ascPieChart
 
 type CrossoverTactic = StdGen -> Player -> Player -> (Player, Player, StdGen)
 
+-- | Example of onePointCrossover
+--
+-- p1 =  AA AA AA AA AA
+-- p2 =  BB BB BB BB BB
+
+-- random point generated = 3
+
+-- c1 =  AA AB BB BB BB
+-- c2 =  BB BA AA AA AA
+
 onePointCrossover :: CrossoverTactic
 onePointCrossover g p1 p2 = (p3, p4, g')
     where (percent , g' ) = randomR (0.0, 1.0) g
@@ -37,6 +55,21 @@ onePointCrossover g p1 p2 = (p3, p4, g')
           p3 = Player (p1A ++ p2B) 0 1
           p4 = Player (p2A ++ p1B) 0 1
 
+
+-- | Example of twoPointCrossover
+--
+-- p1 =  AA AA AA AA AA
+-- p2 =  BB BB BB BB BB
+
+-- random point generated = 3
+
+-- length of the rest = 7
+-- second random point generated = 5
+
+-- splitting at 3 and (3 + 5)
+
+-- c1 =  AA AB BB BB AA
+-- c2 =  BB BA AA AA BB
 
 twoPointCrossover :: CrossoverTactic
 twoPointCrossover g p1 p2 = (p3, p4, g'')
@@ -57,7 +90,17 @@ twoPointCrossover g p1 p2 = (p3, p4, g'')
           p4 = Player (p2A ++ p1B ++ p2C) 0 1
 
 
--- | If the players have strings with different lengths, the children will have the both a string with the lesser length
+-- | If the players have strings with different lengths, the children will have both the string with the lesser length
+--
+-- Example:
+--
+-- p1 = AA AA AA AA AA
+-- p2 = BB BB BB BB BB
+--
+-- random distribution ->
+--
+-- c1 = AA BA BB AB BA
+-- c2 = BB AB AA BA AB
 
 uniformCrossover :: CrossoverTactic
 uniformCrossover g p1 p2 = (p3, p4, g')
@@ -69,42 +112,3 @@ uniformCrossover g p1 p2 = (p3, p4, g')
               | v >= 0.5  = go (c1:p3str, c2:p4str) g' xs
               | otherwise = go (c2:p3str, c1:p4str) g' xs
             where (v, g') = randomR (0.0, 1.0) g :: (Double, StdGen)
-
-
-
-
--- #### DEPRICATED ####
-
--- |  α = percent to be crossbred, creates (α * length) - 1 new population
--- 
---                α         
-alphaCrossover :: Double -> StdGen -> [Player] -> ([Player], StdGen)
-alphaCrossover alpha g players = (sortByDscRatio (rest ++ children), g')
-  where best                   = round (alpha * genericLength players) :: Int
-        (parents, rest)        = splitAt best players
-        (children, g')         = foldl' go ([], g) (zip parents (tail parents))
-            where go (acc, g) (p1, p2)  = (child : acc, g')
-                      where (child, g') = fitnessCrossoverP g p1 p2
-
-
--- | Creates a crossover between two individuals by comparing win chances
---
--- β = percent of the string to mutate
--- 
--- chooses from the father-string or the mother-string based on the fitness ratio for every char
---
-fitnessCrossoverP :: StdGen -> Player -> Player -> (Player, StdGen)
-fitnessCrossoverP g (Player str1 fit1 games1) (Player str2 fit2 games2) = (Player str3 fit3 games3, g')
-
-    where (str3, g') = go [] beta g (zip str1 str2)
-          fit3       = (fit1 + fit2)     `div` 2
-          games3     = (games1 + games2) `div` 2
-          beta       = (((toD fit1) / (toD games1)) + ((toD fit2) / (toD games2))) / 2
-          toD        = fromIntegral
---                           β
-          go :: String -> Double -> StdGen -> [(Char , Char)] -> (String, StdGen)
-          go acc    _ g [] = (reverse acc, g)
-          go acc beta g ((x,y):xs)
-                | beta >= v = go (x:acc) beta g' xs
-                | otherwise = go (y:acc) beta g' xs
-              where (v, g') = randomR (0.0, 1.0) g

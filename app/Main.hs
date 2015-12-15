@@ -24,11 +24,11 @@ import BoardTypes
 
 -- Fill up the remaining spots
 
-popsize      = 20
+popsize      = 50
 stringlength = 827
 delta        = 0.01    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
-tetha        = 0.3     -- percent to be removed by natural selection
+tetha        = 0.7     -- percent to be removed by natural selection
 alpha        = 1.0     -- percent to be crossbred -> equals alpha/2 children
 
 
@@ -37,7 +37,7 @@ main = do
         boardV <- createBoardPositions "lib/tictactoeCombos827.txt"
         let g0           = mkStdGen 123456
             (pop, g1)    = genIndividuals popsize stringlength g0
-        loop' boardV pop g1 10
+        loop' boardV pop g1 390
 
 playMe :: String -> IO ()
 playMe str = do

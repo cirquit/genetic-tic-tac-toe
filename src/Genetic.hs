@@ -12,28 +12,35 @@ import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 import BoardLib   (toBoardVector)
 import Crossover
 
--- |             Size 
+-- |        Chromosome length
+--          \_______________/
+--                |
 genIndividual :: Int -> StdGen -> (Player, StdGen)
 genIndividual len g = let player  = Player (take len (randomRs ('A', 'I') g)) 0 1
                           (g', _) = split g
                       in (player, g')
 
 
--- |              Size -> Stringlength
-genIndividuals :: Int  -> Int          -> StdGen -> ([Player], StdGen)
+-- |             List size  Chromosome length
+--               \_______/  \_______________/
+--                 |         /
+--                 |        /
+genIndividuals :: Int  -> Int -> StdGen -> ([Player], StdGen)
 genIndividuals = go []
     where go :: [Player] -> Int -> Int -> StdGen -> ([Player], StdGen)
           go acc    0   _ g = (acc, g)
           go acc size len g = let (res, g') = genIndividual len g
                               in go (res : acc) (size - 1) len g'
 
--- | mutates every player with δ chance, mutation β percent of the string
+
+-- | mutates every player with δ chance, mutation β percent of the Chromosome
 --   no fitness adjusting
 --
 -- δ = chance to mutate
--- β = percent of the string to mutate
+-- β = percent of the Chromosome to mutate
 --
 --          δ         β
+--          |         |
 mutate :: Double -> Double -> StdGen -> [Player] -> ([Player], StdGen)
 mutate = go []
     where go :: [Player] -> Double -> Double -> StdGen -> [Player] -> ([Player], StdGen)
@@ -45,6 +52,7 @@ mutate = go []
                   (p', g'') = mutateP p g' beta
 --
 --                                         β
+--                                         |
           mutateP :: Player -> StdGen -> Double -> (Player, StdGen)
           mutateP (Player l fit games) = go ([], fit, games) l
             where go :: (String, Int, Int) -> String -> StdGen -> Double -> (Player, StdGen)
@@ -58,8 +66,10 @@ mutate = go []
 
 -- | fills up the player list with new individuals up to the population size
 --
---                        Population Size    String Length
-repopulate :: [Player] -> Int             -> Int           -> StdGen -> ([Player], StdGen)
+--            Population size    Chromosome length
+--             \___________/     \_______________/
+--                        \       |
+repopulate :: [Player] -> Int -> Int -> StdGen -> ([Player], StdGen)
 repopulate players size len g = (players ++ pop, g')
     where tocreate  = size - length players
           (pop, g') = genIndividuals tocreate len g
@@ -68,6 +78,7 @@ repopulate players size len g = (players ++ pop, g')
 -- | θ = percent to be removed by natural selection
 -- 
 --                    θ
+--                    |
 naturalselection :: Double -> [Player] -> [Player]
 naturalselection tetha players = take best (sortByDscRatio players)
     where best = length players - round (tetha * genericLength players)
