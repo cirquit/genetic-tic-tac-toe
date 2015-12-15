@@ -7,13 +7,14 @@ import Debug.Trace (trace)
 import Data.List   (foldl', genericLength, sortBy)
 import Data.Ord    (comparing)
 import Data.Function (on)
+import System.Random
 
 
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 import BoardLib (playOn, emptyBoard, rotate, toMove, gameState, isValidOn)
 
 data Player = Player { str :: String, fitness :: Int, games :: Int }
-
+  deriving Eq
 
 instance Show Player where
   show (Player str fitness games) = "Player # " ++ take 12 str ++ " # Fitness: " ++ show ((fromIntegral fitness) / (fromIntegral games))
@@ -114,7 +115,45 @@ populationPlayIO v (p1:ps) = do
               (p1' , p2' , _) <- playIO v p1  p2  (v ! n)
               (p2'', p1'', _) <- playIO v p2' p1' (v ! n)
               playAllBoardsIO (v, n - 1) p1'' p2''
-              
-sortByDescFitness :: [Player] -> [Player]
-sortByDescFitness = sortBy (flip (compare `on` (\p -> toD (fitness p) / toD (games p))))
+
+sortByAscRatio :: [Player] -> [Player]
+sortByAscRatio = sortBy (comparing ratio)
+
+sortByDscRatio :: [Player] -> [Player]
+sortByDscRatio = sortBy (flip (comparing ratio))
+
+ratio :: Player -> Double
+ratio x = toD (fitness x) / toD (games x)
     where toD = fromIntegral
+
+
+sumRatios :: [Player] -> Double
+sumRatios = foldl (\acc x -> acc + ratio x) 0.0
+
+
+
+ascendingPieChart :: [Player] -> [(Player, Double)]
+ascendingPieChart players = foldl (\acc x -> (x, ratio x / sumR) : acc) [] descPlayers
+    where sumR        = sumRatios players
+          descPlayers = sortByDscRatio players
+
+-- | gets an ascending pieChart and returns two unique players
+
+getUniquePlayers :: StdGen -> [(Player, Double)] -> (Player, Player, StdGen)
+getUniquePlayers g l = go p1 g' l
+  where
+      p1      = getPlayer v l
+      (v, g') = randomR (0.0, 1.0) g
+
+      go :: Player -> StdGen -> [(Player, Double)] -> (Player, Player, StdGen)
+      go p1 g l
+            | p1 == p2  = go p1 g' l
+            | otherwise = (p1, p2, g')
+          where (v, g') = randomR (0.0, 1.0) g
+                p2      = getPlayer v l
+
+      getPlayer :: Double -> [(Player, Double)] -> Player
+      getPlayer v ((player, r):ps)
+            | v' <= 0.0 = player
+            | otherwise = getPlayer v' ps
+          where v' = v - r
