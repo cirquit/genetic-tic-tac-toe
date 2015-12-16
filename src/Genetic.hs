@@ -44,8 +44,8 @@ genIndividuals = go []
 mutate :: Double -> Double -> StdGen -> [Player] -> ([Player], StdGen)
 mutate = go []
     where go :: [Player] -> Double -> Double -> StdGen -> [Player] -> ([Player], StdGen)
-          go acc     _    _ g     [] = ((reverse acc), g) 
-          go acc delta beta g (p:ps)
+          go !acc     _    _ g     [] = ((reverse acc), g) 
+          go !acc delta beta g (p:ps)
               | delta >= v = go (p':acc) delta beta g'' ps
               | otherwise  = go (p :acc) delta beta g'  ps
             where (v , g' ) = randomR (0.0, 1.0) g
@@ -56,8 +56,8 @@ mutate = go []
           mutateP :: Player -> StdGen -> Double -> (Player, StdGen)
           mutateP (Player l fit games) = go ([], fit, games) l
             where go :: (String, Int, Int) -> String -> StdGen -> Double -> (Player, StdGen)
-                  go (acc, fit, games)     [] g    _ = ((Player (reverse acc) fit games), g)
-                  go (acc, fit, games) (x:xs) g beta 
+                  go (!acc, fit, games)     [] g    _ = ((Player (reverse acc) fit games), g)
+                  go (!acc, fit, games) (x:xs) g beta 
                       | beta >= v = go ((c:acc), fit, games) xs g'' beta
                       | otherwise = go ((x:acc), fit, games) xs g'  beta
                     where (v, g' ) = randomR (0.0, 1.0) g

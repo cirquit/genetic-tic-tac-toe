@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns #-}
 
 module Player where
 
@@ -17,7 +17,8 @@ data Player = Player { str :: String, fitness :: Int, games :: Int }
   deriving Eq
 
 instance Show Player where
-  show (Player str fitness games) = "Player # " ++ take 12 str ++ " # Fitness: " ++ show ((fromIntegral fitness) / (fromIntegral games))
+    show (Player str fitness games) = unwords ["Player #", take 20 str, "# Fitness in %:", percent, "# Not Lost:", (show fitness), "# Games:", (show games)]
+      where percent = show ((fromIntegral fitness) / (fromIntegral games))
 
 getMove :: Player -> Int -> Move
 getMove (Player str _ _) i = toMove (str !! i)
@@ -28,12 +29,12 @@ nextMove v player board = (move `isValidOn` board, move, move `playOn` board)
         move  = getMove player index
         index = tryRotations (rotate board) v
 
-tryRotations :: [Board] -> Vector Board -> Int
-tryRotations []     v = error "No rotation was found"
-tryRotations (b:bs) v =
-   case elemIndex b v of
-      (Just i) -> i -- trace ("Index: " ++ show (i + 1)) (i)
-      Nothing  -> tryRotations bs v
+        tryRotations :: [Board] -> Vector Board -> Int
+        tryRotations []     v = error "No rotation was found"
+        tryRotations (b:bs) v =
+           case elemIndex b v of
+              (Just i) -> i -- trace ("Index: " ++ show (i + 1)) (i)
+              Nothing  -> tryRotations bs v
 
 play :: Vector Board -> Player -> Player -> Board -> (Player, Player, Result Value)
 play boardV p1 p2 board = 
@@ -156,3 +157,13 @@ getUniquePlayers g l = go p1 g' l
             | v' <= 0.0 = player
             | otherwise = getPlayer v' ps
           where v' = v - r
+
+
+-- | returns the amount of chars which are not the same 
+--   if the Chromosomelength is not the same, the rest will be ignored
+--
+comparePlayers :: String -> String -> Int
+comparePlayers (x:xs) (y:ys)
+  | x == y    = comparePlayers xs ys
+  | otherwise = 1 + comparePlayers xs ys
+comparePlayers    xs     ys = 0

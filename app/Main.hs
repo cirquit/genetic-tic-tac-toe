@@ -1,10 +1,14 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns, ViewPatterns #-}
 module Main where
 
 import Control.Monad
 import System.Random
 import qualified Data.Vector as V
-import System.IO          (hSetBuffering, stdout, BufferMode(..))
+import System.IO                  (hSetBuffering, stdout, BufferMode(..))
+import System.Posix.Signals 
+import System.Exit
+import Control.Concurrent
+
 
 import Genetic  -- (genIndividual, genIndividuals)
 import Crossover
@@ -24,44 +28,42 @@ import BoardTypes
 
 -- Fill up the remaining spots
 
-popsize      = 50
-stringlength = 827
+popsize      = 2      -- populationsize
+stringlength = 827     -- possible boardstates
 delta        = 0.01    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
-tetha        = 0.7     -- percent to be removed by natural selection
-alpha        = 1.0     -- percent to be crossbred -> equals alpha/2 children
-
+tetha        = 0.0     -- percent to be removed by natural selection
+generations  = 10
 
 main :: IO ()
 main = do
-        boardV <- createBoardPositions "lib/tictactoeCombos827.txt"
-        let g0           = mkStdGen 123456
-            (pop, g1)    = genIndividuals popsize stringlength g0
-        loop' boardV pop g1 390
+    vec <- createBoardPositions "lib/tictactoeCombos827.txt"
+    let g0                  = mkStdGen 1345
+        (population, g1)    = genIndividuals popsize stringlength g0
+    evolution vec population g1 generations -- "log/log.txt"
 
-playMe :: String -> IO ()
-playMe str = do
-    let p = Player str 1 1
-    boardV <- createBoardPositions "lib/tictactoeCombos827.txt"
-    playAI boardV emptyBoard p 0
-
-loop' :: V.Vector Board -> [Player] -> StdGen -> Int -> IO ()
-loop' v pop g1 0 = mapM_ (putStrLn . str) (take 10 pop)
-loop' v pop g1 n = do
-            let !playedpop            = populationPlay v pop
-                (!children,g2)        = rouletteCrossover uniformCrossover g1 playedpop
-                (!mutantchildren, g3) = mutate delta beta g2 children
-                !playedchildren       = populationPlay v mutantchildren
-                !natpop               = naturalselection tetha (playedpop ++ playedchildren)
-                (pop', g4)            = repopulate natpop popsize stringlength g3
-            mapM_ print pop'
-            putStrLn "\n New Generation \n"
-            loop' v pop' g4 (n-1)
-
+evolution :: V.Vector Board -> [Player] -> StdGen -> Int -> IO ()
+evolution vec population g0 0 = mapM_ (putStrLn . str) (take 10 population)
+evolution vec population g0 n = do
+            
+--            tid <- myThreadId
+--            installHandler keyboardSignal (Catch (safeExit population vec tid)) Nothing
+--            threadDelay (1000000000)
+            
+            putStrLn $ "\nGeneration left to live: " ++ show n
+            let !parents          = populationPlay vec population
+                (!children , g1)  = rouletteCrossover uniformCrossover g0 parents
+                (!children', g2)  = mutate delta beta g1 children
+                !children''       = populationPlay vec children'
+                !selected         = naturalselection tetha (parents ++ children'')
+                (npopulation, g3) = repopulate selected popsize stringlength g2
+            mapM_ print npopulation
+            evolution vec npopulation g3 (n-1)
 
 
-loop :: V.Vector Board -> [Player] -> StdGen -> IO ()
-loop v pop g1 = do
+
+customEvolution :: V.Vector Board -> [Player] -> StdGen -> IO ()
+customEvolution v pop g1 = do
     hSetBuffering stdout NoBuffering
     putStr "Another round? (y/n) or (p)rint "
     input <- getLine
@@ -74,35 +76,82 @@ loop v pop g1 = do
                 !natpop               = naturalselection tetha (playedpop ++ playedchildren)
                 (pop', g4)            = repopulate natpop popsize stringlength g3
             mapM_ print pop'
-            putStrLn "\n New Generation \n"
-            loop v pop' g4
+            customEvolution v pop' g4
         "p" -> mapM_ (putStrLn . str) (take 10 pop)
-        _  -> putStrLn "Exiting..." >> mapM_ print pop
+        _   -> putStrLn "Exiting..." >> mapM_ print pop
 
 
-playAI :: V.Vector Board -> Board -> Player -> Int -> IO ()
-playAI v board player n = do
-    print board
-    case (gameState board, n) of
-        (Ongoing, 0) -> do
-                   putStr "My move: "
-                   input <- getLine
-                   case input of
-                       "1" -> playAI v (A1 `playOn` board) player 1
-                       "2" -> playAI v (A2 `playOn` board) player 1
-                       "3" -> playAI v (A3 `playOn` board) player 1
-                       "4" -> playAI v (B1 `playOn` board) player 1
-                       "5" -> playAI v (B2 `playOn` board) player 1
-                       "6" -> playAI v (B3 `playOn` board) player 1
-                       "7" -> playAI v (C1 `playOn` board) player 1
-                       "8" -> playAI v (C2 `playOn` board) player 1
-                       "9" -> playAI v (C3 `playOn` board) player 1
-                       _   -> putStrLn "Noob l2p" >> playAI v board player 0
-        (Ongoing, 1) -> case nextMove v player board of
-                             (False, move, _)      -> putStrLn ("Master wins, I tried to play " ++ show move)
-                             (True , _   , board') -> playAI v board' player 0
-        ((Win r), _) -> putStrLn (show r ++ " won!")
-        (Tie    , _) -> putStrLn "It's a tie"
+safeExit :: [Player] -> V.Vector Board -> ThreadId -> IO ()
+safeExit population vec tid = do
+    putStrLn ""
+    mapM_ print population
+    putStrLn $ "\n * <int> - from the range 0 - " ++ show (length population) ++ " prints the indiviual"
+    putStrLn    " * exit/quit/q/:q  - exits the program"
+    putStrLn    " * play <int> [me|ki] - let's you play vs the individual at that index, second arg is who starts first"
+    input <- getLine
+    loop population vec input
+  where 
+    loop :: [Player] -> V.Vector Board -> String -> IO ()
+    loop population vec "exit" = killThread tid >> exitSuccess
+    loop population vec "quit" = killThread tid >> exitSuccess
+    loop population vec "q"    = killThread tid >> exitSuccess
+    loop population vec ":q"   = killThread tid >> exitSuccess
+    loop population vec ('p':'l':'a':'y':' ':xs)
+      | [(n, " me")] <- reads xs, n >= 0, n < length population = do
+            playAI vec (population !! n) 0
+            putStr "Command: "
+            input <- getLine
+            loop population vec input
+      | [(n, " ki")] <- reads xs, n >= 0, n < length population = do
+            playAI vec (population !! n) 1
+            putStr "Command: "
+            input <- getLine
+            loop population vec input
+    loop population vec (reads -> [(n, "")])
+      | n >= 0, n < length population = do
+           putStrLn ("Individual Nr." ++ show n)
+           let individual = population !! n
+           putStrLn ("Fitness in %, Wins + Ties, Total Games: " ++ show (ratio individual) ++ ", " ++ show (fitness individual) ++ ", " ++ show (games individual))
+           putStrLn ("Chromosome: " ++ str individual)
+           putStr "Command: "
+           input <- getLine
+           loop population vec input
+    loop population vec _      = putStrLn "Sorry, something didn't work...try again" >> putStr "Command: " >> getLine >>= \input -> loop population vec input
+
+
+-- ## Tests ##
+
+-- | Play vs a custom Chromosome for testing purposes
+--
+--   0 - You start
+--   1 - AI starts
+--
+playAI :: V.Vector Board -> Player -> Int -> IO ()
+playAI vec player n = playAI' vec emptyBoard player n
+  where
+      playAI' :: V.Vector Board -> Board -> Player -> Int -> IO ()
+      playAI' vec board player n = do
+          print board
+          case (gameState board, n) of
+              (Ongoing, 0) -> do
+                         putStr "My move: "
+                         input <- getLine
+                         case input of
+                             "1" -> playAI' vec (A1 `playOn` board) player 1
+                             "2" -> playAI' vec (A2 `playOn` board) player 1
+                             "3" -> playAI' vec (A3 `playOn` board) player 1
+                             "4" -> playAI' vec (B1 `playOn` board) player 1
+                             "5" -> playAI' vec (B2 `playOn` board) player 1
+                             "6" -> playAI' vec (B3 `playOn` board) player 1
+                             "7" -> playAI' vec (C1 `playOn` board) player 1
+                             "8" -> playAI' vec (C2 `playOn` board) player 1
+                             "9" -> playAI' vec (C3 `playOn` board) player 1
+                             _   -> putStrLn "Noob l2p" >> playAI' vec board player 0
+              (Ongoing, 1) -> case nextMove vec player board of
+                                   (False, move, _)      -> putStrLn ("Master wins, I tried to play " ++ show move)
+                                   (True , _   , board') -> playAI' vec board' player 0
+              ((Win r), _) -> putStrLn (show r ++ " won!")
+              (Tie    , _) -> putStrLn "It's a tie"
 
 
 crossoverTest :: IO ()

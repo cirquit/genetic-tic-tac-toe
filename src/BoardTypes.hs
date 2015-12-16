@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns #-}
 
 module BoardTypes where
 
