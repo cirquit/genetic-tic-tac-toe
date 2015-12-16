@@ -17,8 +17,8 @@ data Player = Player { str :: String, fitness :: Int, games :: Int }
   deriving Eq
 
 instance Show Player where
-    show (Player str fitness games) = unwords ["Player #", take 20 str, "# Fitness in %:", percent, "# Not Lost:", (show fitness), "# Games:", (show games)]
-      where percent = show ((fromIntegral fitness) / (fromIntegral games))
+    show (Player str fitness games) = unwords ["Player #", take 20 str, "# Fitness in %:", percent, "# Not Lost:", (show fitness), "# Games:", (show games), "\n"]
+      where percent = take 6 $ show ((fromIntegral fitness) / (fromIntegral games))
 
 getMove :: Player -> Int -> Move
 getMove (Player str _ _) i = toMove (str !! i)
@@ -165,5 +165,5 @@ getUniquePlayers g l = go p1 g' l
 comparePlayers :: String -> String -> Int
 comparePlayers (x:xs) (y:ys)
   | x == y    = comparePlayers xs ys
-  | otherwise = 1 + comparePlayers xs ys
+  | otherwise = 1 +  comparePlayers xs ys
 comparePlayers    xs     ys = 0

@@ -28,12 +28,12 @@ import BoardTypes
 
 -- Fill up the remaining spots
 
-popsize      = 2      -- populationsize
+popsize      = 20       -- populationsize
 stringlength = 827     -- possible boardstates
 delta        = 0.01    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
-tetha        = 0.0     -- percent to be removed by natural selection
-generations  = 10
+tetha        = 0.7     -- percent to be removed by natural selection
+generations  = 2
 
 main :: IO ()
 main = do
@@ -50,7 +50,7 @@ evolution vec population g0 n = do
 --            installHandler keyboardSignal (Catch (safeExit population vec tid)) Nothing
 --            threadDelay (1000000000)
             
-            putStrLn $ "\nGeneration left to live: " ++ show n
+            putStrLn $ "\nGeneration(s) left to live: " ++ show n
             let !parents          = populationPlay vec population
                 (!children , g1)  = rouletteCrossover uniformCrossover g0 parents
                 (!children', g2)  = mutate delta beta g1 children
@@ -63,22 +63,22 @@ evolution vec population g0 n = do
 
 
 customEvolution :: V.Vector Board -> [Player] -> StdGen -> IO ()
-customEvolution v pop g1 = do
+customEvolution vec population g0 = do
     hSetBuffering stdout NoBuffering
     putStr "Another round? (y/n) or (p)rint "
     input <- getLine
     case input of
         "y" -> do
-            let !playedpop            = populationPlay v pop
-                (!children,g2)        = rouletteCrossover uniformCrossover g1 playedpop
-                (!mutantchildren, g3) = mutate delta beta g2 children
-                !playedchildren       = populationPlay v mutantchildren
-                !natpop               = naturalselection tetha (playedpop ++ playedchildren)
-                (pop', g4)            = repopulate natpop popsize stringlength g3
-            mapM_ print pop'
-            customEvolution v pop' g4
-        "p" -> mapM_ (putStrLn . str) (take 10 pop)
-        _   -> putStrLn "Exiting..." >> mapM_ print pop
+            let !parents          = populationPlay vec population
+                (!children , g1)  = rouletteCrossover uniformCrossover g0 parents
+                (!children', g2)  = mutate delta beta g1 children
+                !children''       = populationPlay vec children'
+                !selected         = naturalselection tetha (parents ++ children'')
+                (npopulation, g3) = repopulate selected popsize stringlength g2
+            mapM_ print npopulation
+            customEvolution vec npopulation g3
+        "p" -> mapM_ (putStrLn . str) (take 5 population)
+        _   -> putStrLn "Exiting..." >> mapM_ print population
 
 
 safeExit :: [Player] -> V.Vector Board -> ThreadId -> IO ()
@@ -88,6 +88,7 @@ safeExit population vec tid = do
     putStrLn $ "\n * <int> - from the range 0 - " ++ show (length population) ++ " prints the indiviual"
     putStrLn    " * exit/quit/q/:q  - exits the program"
     putStrLn    " * play <int> [me|ki] - let's you play vs the individual at that index, second arg is who starts first"
+    putStr "Command: "
     input <- getLine
     loop population vec input
   where 
