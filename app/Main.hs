@@ -20,9 +20,16 @@ import BoardTypes
 --
 --  * Coevolution - two different populations play vs each other (no crossover between the two of them)
 --  * fitness is based on "turns lived"
---  * fitness counts real wins / invalidmove wins / losses from invalid moves
+-- 1. fitness counts real wins / invalidmove wins / losses from invalid moves
 --  * only play two games from empty board only
 --  * invalid moves are not permitted (predefined in boardVector)
+
+-- real win = 1.0 count + 1
+-- win through invalid move = 0 count stays same
+-- turn = turns / 5  count + 5 for every game played (new count)
+-- lose                       = 0.2 count + 1
+-- loose through invalid move = 0   count + 1
+
 
 -- Let gensize (100) Players play vs each other
 -- crossover according to alpha
