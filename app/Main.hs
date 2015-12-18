@@ -5,7 +5,7 @@ import Control.Monad
 import System.Random
 import qualified Data.Vector as V
 import System.IO                  (hSetBuffering, stdout, BufferMode(..))
-import System.Posix.Signals 
+import System.Posix.Signals
 import System.Exit
 import Control.Concurrent
 
@@ -15,6 +15,14 @@ import Crossover
 import Player --   (play,playIO)
 import BoardLib -- (createBoardPositions)
 import BoardTypes
+
+-- Ideas:
+--
+--  * Coevolution - two different populations play vs each other (no crossover between the two of them)
+--  * fitness is based on "turns lived"
+--  * fitness counts real wins / invalidmove wins / losses from invalid moves
+--  * only play two games from empty board only
+--  * invalid moves are not permitted (predefined in boardVector)
 
 -- Let gensize (100) Players play vs each other
 -- crossover according to alpha
