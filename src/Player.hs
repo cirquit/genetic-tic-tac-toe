@@ -9,6 +9,8 @@ import Data.Ord         (comparing)
 import Data.Function    (on)
 import System.Random
 
+import Control.Monad.Random
+
 
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 import BoardLib   (playOn, emptyBoard, rotate, toMove, gameState, isValidOn)
@@ -139,23 +141,25 @@ ascendingPieChart players = foldl (\acc x -> (x, ratio x / sumR) : acc) [] descP
 
 -- | gets an ascending pieChart and returns two semi-random unique players
 --
-getUniquePlayers :: StdGen -> [(Player, Double)] -> (Player, Player, StdGen)
-getUniquePlayers g l = go p1 g' l
+getUniquePlayers :: MonadRandom m => [(Player, Double)] -> m (Player, Player)
+getUniquePlayers l = getRandomR (0.0, 1.0) >>= findPartner l . getPlayer l
+    --v  <- getRandomR (0.0, 1.0)
+    --let p1 = getPlayer v l
+    --findPartner p1 l
+
   where
-      p1      = getPlayer v l
-      (v, g') = randomR (0.0, 1.0) g
+      findPartner :: MonadRandom m => [(Player, Double)] -> Player -> m (Player, Player)
+      findPartner l p1 = do
+          v <- getRandomR (0.0, 1.0)
+          let p2 = getPlayer l v
+          case p1 == p2 of
+              True  -> findPartner l p1
+              False -> return (p1, p2)
 
-      go :: Player -> StdGen -> [(Player, Double)] -> (Player, Player, StdGen)
-      go p1 g l
-            | p1 == p2  = go p1 g' l
-            | otherwise = (p1, p2, g')
-          where (v, g') = randomR (0.0, 1.0) g
-                p2      = getPlayer v l
-
-      getPlayer :: Double -> [(Player, Double)] -> Player
-      getPlayer v ((player, r):ps)
+      getPlayer :: [(Player, Double)] -> Double -> Player
+      getPlayer ((player, r):ps) v
             | v' <= 0.0 = player
-            | otherwise = getPlayer v' ps
+            | otherwise = getPlayer ps v'
           where v' = v - r
 
 

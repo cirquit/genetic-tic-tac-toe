@@ -10,6 +10,7 @@ import System.IO                  (hSetBuffering, stdout, BufferMode(..))
 import System.Posix.Signals
 import System.Exit
 import Control.Concurrent
+import Control.Monad.Random
 -----------------------------------------------------------------------------------
 
 import Genetic  -- (genIndividual, genIndividuals)
@@ -180,7 +181,7 @@ playAI vec player n = playAI' vec emptyBoard player n
               ((Win r), _) -> putStrLn (show r ++ " won!")
               (Tie    , _) -> putStrLn "It's a tie"
 
-{-
+
 crossoverTest :: IO ()
 crossoverTest = do
     let p1 = Player "AAAAAAAAAA" 1    3
@@ -191,6 +192,5 @@ crossoverTest = do
         p6 = Player "FFFFFFFFFF" 6   67
         g  = mkStdGen 311
 
-        (l,_) = rouletteCrossover uniformCrossover g [p1,p2,p3,p4,p5,p6]
+        l = flip evalRand g $ rouletteCrossover onePointCrossover [p1,p2,p3,p4,p5,p6]
     mapM_ print l
--}

@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns, ScopedTypeVariables, Rank2Types #-}
 
 module Crossover where
 
@@ -18,22 +18,23 @@ import Player
 -- * uniformCrossover 
 -- 
 -- Creates a pie chart based on the overall wins / games played ratio
--- 
-rouletteCrossover :: CrossoverTactic -> StdGen -> [Player] -> ([Player], StdGen)
-rouletteCrossover tactic g players = go [] (length players) g ascPieChart
+-- TODO think about the logic, the players get picked without removing them from the list
+
+rouletteCrossover :: MonadRandom m => CrossoverTactic -> [Player] -> m [Player]
+rouletteCrossover tactic players = go [] (length players) ascPieChart
   where 
         ascPieChart = ascendingPieChart players
 
-        go :: [Player] -> Int -> StdGen -> [(Player, Double)] -> ([Player], StdGen)
-        go acc     0 g l = (acc, g)
-        go acc     1 g l = (acc, g) -- TODO
-        go acc count g l = go (c1:c2:acc) (count-2) g'' l
-            where 
-                  (p1, p2, g')  = getUniquePlayers g l
-                  (c1, c2, g'') = tactic g' p1 p2
+        go :: MonadRandom m => [Player] -> Int -> [(Player, Double)] -> m [Player]
+        go acc     0 l = return acc
+        go acc     1 l = return acc -- TODO
+        go acc count l = do
+            (p1, p2) <- getUniquePlayers l
+            (c1, c2) <- tactic p1 p2
+            go (c1:c2:acc) (count-2) l
 
 
-type CrossoverTactic = StdGen -> Player -> Player -> (Player, Player, StdGen)
+type CrossoverTactic = MonadRandom m => Player -> Player -> m (Player, Player)
 
 -- | Example of onePointCrossover
 --
