@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns, ViewPatterns #-}
 module Main where
 
+-----------------------------------------------------------------------------------
+
 import Control.Monad
 import System.Random
 import qualified Data.Vector as V
@@ -8,19 +10,21 @@ import System.IO                  (hSetBuffering, stdout, BufferMode(..))
 import System.Posix.Signals
 import System.Exit
 import Control.Concurrent
-
+-----------------------------------------------------------------------------------
 
 import Genetic  -- (genIndividual, genIndividuals)
 import Crossover
 import Player --   (play,playIO)
 import BoardLib -- (createBoardPositions)
 import BoardTypes
+-----------------------------------------------------------------------------------
+
 
 -- Ideas:
 --
 --  * Coevolution - two different populations play vs each other (no crossover between the two of them)
 --  * fitness is based on "turns lived"
--- 1. fitness counts real wins / invalidmove wins / losses from invalid moves
+--  * fitness counts real wins / invalidmove wins / losses from invalid moves
 --  * only play two games from empty board only
 --  * invalid moves are not permitted (predefined in boardVector)
 
@@ -43,7 +47,7 @@ import BoardTypes
 
 -- Fill up the remaining spots
 
-popsize      = 20       -- populationsize
+popsize      = 20      -- populationsize
 stringlength = 827     -- possible boardstates
 delta        = 0.01    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
@@ -52,18 +56,20 @@ generations  = 2
 
 main :: IO ()
 main = do
-    vec <- createBoardPositions "lib/tictactoeCombos827.txt"
-    let g0                  = mkStdGen 1345
-        (population, g1)    = genIndividuals popsize stringlength g0
-    evolution vec population g1 generations -- "log/log.txt"
+      print 1
+--    vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
+--    let g0                  = mkStdGen 1345
+--        (population, g1)    = genIndividuals popsize stringlength g0
+--    evolution vec population g1 generations -- "log/log.txt"
 
-evolution :: V.Vector Board -> [Player] -> StdGen -> Int -> IO ()
-evolution vec population g0 0 = mapM_ (putStrLn . str) (take 10 population)
-evolution vec population g0 n = do
-            
---            tid <- myThreadId
---            installHandler keyboardSignal (Catch (safeExit population vec tid)) Nothing
---            threadDelay (1000000000)
+{-
+ evolution :: V.Vector Board -> [Player] -> StdGen -> Int -> IO ()
+ evolution vec population g0 0 = mapM_ (putStrLn . str) (take 10 population)
+ evolution vec population g0 n = do
+             
+            tid <- myThreadId
+            installHandler keyboardSignal (Catch (safeExit population vec tid)) Nothing
+            threadDelay (1000000000)
             
             putStrLn $ "\nGeneration(s) left to live: " ++ show n
             let !parents          = populationPlay vec population
@@ -74,28 +80,32 @@ evolution vec population g0 n = do
                 (npopulation, g3) = repopulate selected popsize stringlength g2
             mapM_ print npopulation
             evolution vec npopulation g3 (n-1)
+-}
 
+-----------------------------------------------------------------------------------
+-- | User input for communication
 
+{-
+ customEvolution :: V.Vector Board -> [Player] -> StdGen -> IO ()
+ customEvolution vec population g0 = do
+     hSetBuffering stdout NoBuffering
+     putStr "Another round? (y/n) or (p)rint "
+     input <- getLine
+     case input of
+         "y" -> do
+             let !parents          = populationPlay vec population
+                 (!children , g1)  = rouletteCrossover uniformCrossover g0 parents
+                 (!children', g2)  = mutate delta beta g1 children
+                 !children''       = populationPlay vec children'
+                 !selected         = naturalselection tetha (parents ++ children'')
+                 (npopulation, g3) = repopulate selected popsize stringlength g2
+             mapM_ print npopulation
+             customEvolution vec npopulation g3
+         "p" -> mapM_ (putStrLn . str) (take 5 population)
+         _   -> putStrLn "Exiting..." >> mapM_ print population
+-}
 
-customEvolution :: V.Vector Board -> [Player] -> StdGen -> IO ()
-customEvolution vec population g0 = do
-    hSetBuffering stdout NoBuffering
-    putStr "Another round? (y/n) or (p)rint "
-    input <- getLine
-    case input of
-        "y" -> do
-            let !parents          = populationPlay vec population
-                (!children , g1)  = rouletteCrossover uniformCrossover g0 parents
-                (!children', g2)  = mutate delta beta g1 children
-                !children''       = populationPlay vec children'
-                !selected         = naturalselection tetha (parents ++ children'')
-                (npopulation, g3) = repopulate selected popsize stringlength g2
-            mapM_ print npopulation
-            customEvolution vec npopulation g3
-        "p" -> mapM_ (putStrLn . str) (take 5 population)
-        _   -> putStrLn "Exiting..." >> mapM_ print population
-
-
+{-
 safeExit :: [Player] -> V.Vector Board -> ThreadId -> IO ()
 safeExit population vec tid = do
     putStrLn ""
@@ -133,8 +143,9 @@ safeExit population vec tid = do
            input <- getLine
            loop population vec input
     loop population vec _      = putStrLn "Sorry, something didn't work...try again" >> putStr "Command: " >> getLine >>= \input -> loop population vec input
+-}
 
-
+-----------------------------------------------------------------------------------
 -- ## Tests ##
 
 -- | Play vs a custom Chromosome for testing purposes
@@ -169,7 +180,7 @@ playAI vec player n = playAI' vec emptyBoard player n
               ((Win r), _) -> putStrLn (show r ++ " won!")
               (Tie    , _) -> putStrLn "It's a tie"
 
-
+{-
 crossoverTest :: IO ()
 crossoverTest = do
     let p1 = Player "AAAAAAAAAA" 1    3
@@ -182,3 +193,4 @@ crossoverTest = do
 
         (l,_) = rouletteCrossover uniformCrossover g [p1,p2,p3,p4,p5,p6]
     mapM_ print l
+-}

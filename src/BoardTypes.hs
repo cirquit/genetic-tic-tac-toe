@@ -3,7 +3,7 @@
 module BoardTypes where
 
 -- | Board defintions
-
+--
 data Board = Board { a1 :: Maybe Value , a2 :: Maybe Value , a3 :: Maybe Value
                    , b1 :: Maybe Value , b2 :: Maybe Value , b3 :: Maybe Value
                    , c1 :: Maybe Value , c2 :: Maybe Value , c3 :: Maybe Value
@@ -22,13 +22,12 @@ instance Show Board where
           row2  = unwords ["|", showMV b1, "|", showMV b2, "|", showMV b3, "|"] 
           row3  = unwords ["|", showMV c1, "|", showMV c2, "|", showMV c3, "|"]
 
-
-showMV :: Maybe Value -> String
-showMV (Just v) = show v
-showMV _        = " "
+          showMV :: Maybe Value -> String
+          showMV (Just v) = show v
+          showMV _        = " "
 
 -- | Value definitions
-
+--
 data Value = O | X 
     deriving (Show, Eq)
 
@@ -44,7 +43,7 @@ instance Enum Value where
 
 
 -- | Move definitions
-
+--
 data Move = A1 | A2 | A3
           | B1 | B2 | B3
           | C1 | C2 | C3
@@ -56,6 +55,6 @@ instance Bounded Move where
 
 
 -- | Result defintions
-
+--
 data Result a = Win a | Tie | Ongoing
   deriving Show

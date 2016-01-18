@@ -44,20 +44,24 @@ gameState b@Board{..}
 isValidOn :: Move -> Board -> Bool
 isValidOn move b = changes b /= changes (move `playOn` b)
     where
-        changes b@Board{..} = foldl' go 0 [a1,a2,a3,b1,b2,b3,c1,c2,c3]
+        changes b@Board{..} = foldl' countEmpty 0 [a1,a2,a3,b1,b2,b3,c1,c2,c3]
 
-        go acc Nothing = acc + 1
-        go acc _       = acc
+        countEmpty acc Nothing = acc + 1
+        countEmpty acc _       = acc
 
 -- | starting board shortcut
 --
 emptyBoard :: Board
-emptyBoard = Board e e e  e e e  e e e  X
+emptyBoard = Board e e e  -- row 1
+                   e e e  -- row 2
+                   e e e  -- row 3
+                   X      -- start
   where e = Nothing
 
 
--- | 
-
+-- | creates all possible rotations for one boardstate
+--   TODO: memoisation
+--
 rotate :: Board -> [Board]
 rotate b0 = [b0, b1, b2, b3, b4, b5, b6, b7]
   where b1 = cw b0
@@ -90,21 +94,24 @@ toMove 'F' = B3
 toMove 'G' = C1
 toMove 'H' = C2
 toMove 'I' = C3
-toMove  x  = error ("could not find the move: <" ++ x:">")
+toMove  x  = error ("BoardLib.toMove: could not find the move: <" ++ x:">")
 
 
+-- | board parser for every possible gamestate encoded in a sinlge .txt-file
+-- 
 toBoardVector :: String -> Vector Board
 toBoardVector input = go (lines input) []
   where 
         go :: [String] -> [Board] -> Vector Board
-        go []     !acc = fromList (reverse acc)
+        go []      acc = fromList (reverse acc)
         go (x:xs) !acc = go xs (toBoard x : acc)
 
         toBoard :: String -> Board
-        toBoard l@[a1, a2, a3, b1, b2, b3, c1, c2, c3] = Board { a1 = toV a1, a2 = toV a2, a3 = toV a3
-                                                             , b1 = toV b1, b2 = toV b2, b3 = toV b3
-                                                             , c1 = toV c1, c2 = toV c2, c3 = toV c3
-                                                             , turn = turn' }
+        toBoard l@[a1, a2, a3, b1, b2, b3, c1, c2, c3] =
+                Board { a1 = toV a1, a2 = toV a2, a3 = toV a3
+                      , b1 = toV b1, b2 = toV b2, b3 = toV b3
+                      , c1 = toV c1, c2 = toV c2, c3 = toV c3
+                      , turn = turn' }
 
             where turn' 
                       | even underscores = X
@@ -116,5 +123,7 @@ toBoardVector input = go (lines input) []
         toV 'O' = Just O
         toV '_' = Nothing
 
-createBoardPositions :: FilePath -> IO (Vector Board)
-createBoardPositions fp = readFile fp >>= (return . toBoardVector)
+-- | shortcut 
+-- 
+createBoardStatesFrom :: FilePath -> IO (Vector Board)
+createBoardStatesFrom fp = readFile fp >>= (return . toBoardVector)
