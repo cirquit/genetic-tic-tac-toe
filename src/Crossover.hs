@@ -59,19 +59,6 @@ onePointCrossover p1 p2 = do
 
     return (p3, p4)
 
---onePointCrossover :: CrossoverTactic
---onePointCrossover g p1 p2 = (p3, p4, g')
---    where (percent , g' ) = randomR (0.0, 1.0) g
-
---          len          = genericLength (str p1) :: Double
-
---          (p1A , p1B)  = splitAt (round (percent * len)) (str p1)
---          (p2A , p2B)  = splitAt (round (percent * len)) (str p2)
-
---          p3 = Player (p1A ++ p2B) 0 1
---          p4 = Player (p2A ++ p1B) 0 1
-
-
 -- | Example of twoPointCrossover
 --
 -- p1 =  AA AA AA AA AA
@@ -107,25 +94,6 @@ twoPointCrossover p1 p2 = do
 
     return (p3, p4)
 
---twoPointCrossover :: CrossoverTactic
---twoPointCrossover g p1 p2 = (p3, p4, g'')
---    where (point1, g' ) = randomR (0.0, 1.0) g
---          (point2, g'') = randomR (0.0, 1.0) g'
-
---          len           = genericLength (str p1) :: Double
-
---          (p1A, p1Rest) = splitAt (round (point1 * len)) (str p1)
---          (p2A, p2Rest) = splitAt (round (point1 * len)) (str p2)
-
---          sublen        = genericLength (p1Rest) :: Double
-
---          (p1B, p1C) = splitAt (round (point2 * sublen)) p1Rest
---          (p2B, p2C) = splitAt (round (point2 * sublen)) p2Rest
-
---          p3 = Player (p1A ++ p2B ++ p1C) 0 1
---          p4 = Player (p2A ++ p1B ++ p2C) 0 1
-
-
 -- | If the players have strings with different lengths, the children will have both the string with the lesser length
 --
 -- Example:
@@ -148,16 +116,3 @@ uniformCrossover p1 p2 = go ([],[]) (zip (str p1) (str p2))
             case v >= 0.5 of
                 True -> go (c1:p3str, c2:p4str) xs
                 _    -> go (c2:p3str, c1:p4str) xs
-
--- uniformCrossover :: CrossoverTactic
--- uniformCrossover g p1 p2 = (p3, p4, g')
---   where (p3, p4, g') = go ([],[]) g (zip (str p1) (str p2))
--- 
---         go :: (String, String) -> StdGen -> [(Char, Char)] -> (Player, Player, StdGen)
---         go (p3str, p4str) g            [] = (Player (reverse p3str) 0 1, Player (reverse p4str) 0 1, g)
---         go (p3str, p4str) g ((c1, c2):xs)
---               | v >= 0.5  = go (c1:p3str, c2:p4str) g' xs
---               | otherwise = go (c2:p3str, c1:p4str) g' xs
---             where (v, g') = randomR (0.0, 1.0) g :: (Double, StdGen)
-
-
