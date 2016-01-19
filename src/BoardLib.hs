@@ -123,7 +123,7 @@ toBoardVector input = go (lines input) []
         toV 'O' = Just O
         toV '_' = Nothing
 
--- | shortcut 
+-- | shortcut for creating all possible board states from a .txt
 -- 
 createBoardStatesFrom :: FilePath -> IO (Vector Board)
 createBoardStatesFrom fp = readFile fp >>= (return . toBoardVector)

@@ -57,11 +57,27 @@ generations  = 2
 
 main :: IO ()
 main = do
-      print 1
---    vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
---    let g0                  = mkStdGen 1345
---        (population, g1)    = genIndividuals popsize stringlength g0
---    evolution vec population g1 generations -- "log/log.txt"
+    vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
+    let g      = mkStdGen 1345
+        (g',_) = split g
+        population = flip evalRand g $ genIndividuals popsize stringlength
+    evolution vec population generations g'
+
+evolution :: V.Vector Board -> [Player] -> Int -> StdGen -> IO ()
+evolution vec population 0 _ = mapM_ (putStrLn . str) (take 10 population)
+evolution vec population n g = do
+    putStrLn $ "\nGeneration(s) left to live: " ++ show n
+    let newpop = flip evalRand g $ do
+            let parents = populationPlay vec population
+            children  <- rouletteCrossover uniformCrossover parents
+            mutants   <- mutate delta beta children
+            let children' = populationPlay vec children
+                selected  = naturalselection tetha (parents ++ children')
+            repopulate selected popsize stringlength
+    let (g',_) = split g
+    mapM_ print newpop
+    evolution vec newpop (n-1) g'
+
 
 {-
  evolution :: V.Vector Board -> [Player] -> StdGen -> Int -> IO ()
