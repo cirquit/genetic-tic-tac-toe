@@ -6,31 +6,34 @@ import Data.Vector (Vector(..), fromList)
 import Data.List   (foldl', genericLength, splitAt, sortBy)
 import Data.Ord    (comparing)
 import System.Random
+import Control.Monad.Random (MonadRandom(), getRandomR, getRandomRs)
 
 import Player     (Player(..), sortByDscRatio)
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 import BoardLib   (toBoardVector)
 import Crossover
 
--- |        Chromosome length
---          \_______________/
---                |
-genIndividual :: Int -> StdGen -> (Player, StdGen)
-genIndividual len g = let player  = Player (take len (randomRs ('A', 'I') g)) 0 1
-                          (g', _) = split g
-                      in (player, g')
+-- |                         Chromosome length
+--                           \_______________/
+--                                 |
+genIndividual :: MonadRandom m => Int -> m Player
+genIndividual len = do
+  stream <- getRandomRs ('A', 'I')
+  let chrom = take len stream
+  return $ Player chrom 0 1
 
 
--- |             List size  Chromosome length
---               \_______/  \_______________/
---                 |         /
---                 |        /
-genIndividuals :: Int  -> Int -> StdGen -> ([Player], StdGen)
+-- |                        Population size  Chromosome length
+--                          \_____________/  \_______________/
+--                                  |         /
+--                                  |        /
+genIndividuals :: MonadRandom m => Int  -> Int -> m [Player]
 genIndividuals = go []
-    where go :: [Player] -> Int -> Int -> StdGen -> ([Player], StdGen)
-          go acc    0   _ g = (acc, g)
-          go acc size len g = let (res, g') = genIndividual len g
-                              in go (res : acc) (size - 1) len g'
+    where go :: MonadRandom m => [Player] -> Int -> Int -> m [Player]
+          go acc    0   _ = return acc
+          go acc size len = do
+              res <- genIndividual len
+              go (res : acc) (size - 1) len
 
 
 -- | mutates every player with δ chance, mutation β percent of the Chromosome
@@ -39,41 +42,43 @@ genIndividuals = go []
 -- δ = chance to mutate
 -- β = percent of the Chromosome to mutate
 --
---          δ         β
---          |         |
-mutate :: Double -> Double -> StdGen -> [Player] -> ([Player], StdGen)
+--                           δ         β
+--                           |         |
+mutate :: MonadRandom m => Double -> Double -> [Player] -> m [Player]
 mutate = go []
-    where go :: [Player] -> Double -> Double -> StdGen -> [Player] -> ([Player], StdGen)
-          go !acc     _    _ g     [] = ((reverse acc), g) 
-          go !acc delta beta g (p:ps)
-              | delta >= v = go (p':acc) delta beta g'' ps
-              | otherwise  = go (p :acc) delta beta g'  ps
-            where (v , g' ) = randomR (0.0, 1.0) g
-                  (p', g'') = mutateP p g' beta
---
---                                         β
---                                         |
-          mutateP :: Player -> StdGen -> Double -> (Player, StdGen)
-          mutateP (Player l fit games) = go ([], fit, games) l
-            where go :: (String, Int, Int) -> String -> StdGen -> Double -> (Player, StdGen)
-                  go (!acc, fit, games)     [] g    _ = ((Player (reverse acc) fit games), g)
-                  go (!acc, fit, games) (x:xs) g beta 
-                      | beta >= v = go ((c:acc), fit, games) xs g'' beta
-                      | otherwise = go ((x:acc), fit, games) xs g'  beta
-                    where (v, g' ) = randomR (0.0, 1.0) g
-                          (c, g'') = randomR ('A', 'I') g'
+    where go :: MonadRandom m => [Player] -> Double -> Double -> [Player] -> m [Player]
+          go !acc     _    _     [] = return $ reverse acc
+          go !acc delta beta (p:ps) = do
+              v  <- getRandomR (0.0, 1.0)
+              p' <- mutateP p beta
+              case delta >= v of
+                  True  -> go (p':acc) delta beta ps
+                  False -> go (p :acc) delta beta ps
 
+--
+--                                                β
+--                                                |
+          mutateP :: MonadRandom m => Player -> Double -> m Player
+          mutateP (Player l fit games) = go ([], fit, games) l
+            where go :: MonadRandom m => (String, Int, Int) -> String -> Double -> m Player
+                  go (!acc, fit, games)     []    _ = return $ Player (reverse acc) fit games
+                  go (!acc, fit, games) (x:xs) beta = do
+                      v <- getRandomR (0.0, 1.0)
+                      c <- getRandomR ('A', 'I')
+                      case beta >= v of
+                          True  -> go ((c:acc), fit, games) xs beta
+                          False -> go ((x:acc), fit, games) xs beta
 
 -- | fills up the player list with new individuals up to the population size
 --
---            Population size    Chromosome length
---             \___________/     \_______________/
---                        \       |
-repopulate :: [Player] -> Int -> Int -> StdGen -> ([Player], StdGen)
-repopulate players size len g = (players ++ pop, g')
-    where tocreate  = size - length players
-          (pop, g') = genIndividuals tocreate len g
-
+--                             Population size    Chromosome length
+--                              \___________/     \_______________/
+--                                         \       |
+repopulate :: MonadRandom m => [Player] -> Int -> Int -> m [Player]
+repopulate players size chromlen = do
+    let popsize = size - length players
+    pop <- genIndividuals popsize chromlen
+    return $ players ++ pop
 
 -- | θ = percent to be removed by natural selection
 -- 

@@ -2,14 +2,17 @@
 
 module Crossover where
 
-import Data.Vector (Vector(..), fromList)
-import Data.List   (foldl', genericLength, splitAt, sortBy)
-import Data.Ord    (comparing)
-import System.Random
+--------------------------------------------------------------------
 
-import Control.Monad.Random
+import Data.Vector          (Vector(..), fromList)
+import Data.List            (foldl', genericLength, splitAt, sortBy)
+import Data.Ord             (comparing)
+import Control.Monad.Random (MonadRandom(), getRandomR)
 
-import Player
+--------------------------------------------------------------------
+
+import Player (ascendingPieChart, getUniquePlayers, Player(..))
+--------------------------------------------------------------------
 
 -- | roulette crossover with variable tactic
 --
@@ -20,9 +23,9 @@ import Player
 -- Creates a pie chart based on the overall wins / games played ratio
 -- TODO think about the logic, the players get picked without removing them from the list
 
-rouletteCrossover :: MonadRandom m => CrossoverTactic -> [Player] -> m [Player]
+rouletteCrossover :: MonadRandom r => CrossoverTactic -> [Player] -> r [Player]
 rouletteCrossover tactic players = go [] (length players) ascPieChart
-  where 
+  where
         ascPieChart = ascendingPieChart players
 
         go :: MonadRandom m => [Player] -> Int -> [(Player, Double)] -> m [Player]
@@ -34,7 +37,7 @@ rouletteCrossover tactic players = go [] (length players) ascPieChart
             go (c1:c2:acc) (count-2) l
 
 
-type CrossoverTactic = MonadRandom m => Player -> Player -> m (Player, Player)
+type CrossoverTactic = forall m. MonadRandom m => Player -> Player -> m (Player, Player)
 
 -- | Example of onePointCrossover
 --

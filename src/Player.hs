@@ -2,25 +2,35 @@
 
 module Player where
 
+--------------------------------------------------------------------
+
 import Data.Vector as V (Vector(..), elemIndex, (!), length)
 import Debug.Trace      (trace)
 import Data.List        (foldl', genericLength, sortBy)
 import Data.Ord         (comparing)
 import Data.Function    (on)
-import System.Random
+import Control.Monad.Random (MonadRandom(), getRandomR)
+--------------------------------------------------------------------
 
-import Control.Monad.Random
-
+--------------------------------------------------------------------
 
 import BoardTypes (Board(..), Move(..), Value(..), Result(..))
 import BoardLib   (playOn, emptyBoard, rotate, toMove, gameState, isValidOn)
+--------------------------------------------------------------------
 
-data Player = Player { str :: String, fitness :: Int, games :: Int }
+--------------------------------------------------------------------
+-- | Player definition & instances
+--
+-- 
+data Player = Player { str     :: String  -- moves encoded as Chars for every possible boardstate
+                     , fitness :: Int     -- TODO: rework
+                     , games   :: Int }   -- amount of games played
   deriving Eq
 
 instance Show Player where
     show (Player str fitness games) = unwords ["Player #", take 20 str, "# Fitness in %:", percent, "# Not Lost:", (show fitness), "# Games:", (show games), "\n"]
       where percent = take 6 $ show ((fromIntegral fitness) / (fromIntegral games))
+--------------------------------------------------------------------
 
 getMove :: Player -> Int -> Move
 getMove (Player str _ _) i = toMove (str !! i)
@@ -143,10 +153,6 @@ ascendingPieChart players = foldl (\acc x -> (x, ratio x / sumR) : acc) [] descP
 --
 getUniquePlayers :: MonadRandom m => [(Player, Double)] -> m (Player, Player)
 getUniquePlayers l = getRandomR (0.0, 1.0) >>= findPartner l . getPlayer l
-    --v  <- getRandomR (0.0, 1.0)
-    --let p1 = getPlayer v l
-    --findPartner p1 l
-
   where
       findPartner :: MonadRandom m => [(Player, Double)] -> Player -> m (Player, Player)
       findPartner l p1 = do
