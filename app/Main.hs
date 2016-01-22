@@ -25,11 +25,16 @@ import SimpleLogger
 
 -- Ideas:
 --
---  * Coevolution - two different populations play vs each other (no crossover between the two of them)
---  * fitness is based on "turns lived"
---  * fitness counts real wins / invalidmove wins / losses from invalid moves
---  * only play two games from empty board only
---  * invalid moves are not permitted (predefined in boardVector)
+--  * Coevolution - two different populations play vs each other (no crossover between the two of them)      Island separated multi population scheme
+--  * fitness is based on "turns lived"                                                                      Done
+--  * fitness counts real wins / invalidmove wins / losses from invalid moves                                Doesn't matter
+--  * only play two games from empty board only                                                              Done
+--  * invalid moves are not permitted (predefined in boardVector)                                            (last resort)
+
+-- Current issues:
+
+-- * Inbreeding...
+
 
 -- real win = 1.0 count + 1
 -- win through invalid move = 0 count stays same
