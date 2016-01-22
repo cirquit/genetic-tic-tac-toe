@@ -39,7 +39,7 @@ gameState b@Board{..}
   where same (Just a) (Just b) (Just c) = a == b && b == c
         same       _        _        _  = False
 
--- | checks validity by the changes on the on the board after the move
+-- | checks validity by the changes on the board after the move
 --
 isValidOn :: Move -> Board -> Bool
 isValidOn move b = changes b /= changes (move `playOn` b)

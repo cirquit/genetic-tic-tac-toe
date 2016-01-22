@@ -34,6 +34,7 @@ import SimpleLogger
 -- Current issues:
 
 -- * Inbreeding...
+-- * TODO: Hash 827 board states - Hash all rotations and store all 9 in a 
 
 
 -- real win = 1.0 count + 1
@@ -55,12 +56,12 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 200    -- populationsize
+popsize      = 500    -- populationsize
 stringlength = 827     -- possible boardstates
-delta        = 0.15    -- chance to mutate
+delta        = 0.1    -- chance to mutate
 beta         = 0.10    -- percent of the string to mutate
 tetha        = 0.7     -- percent to be removed by natural selection
-generations  = 500
+generations  = 200
 
 -------------------------------------------------------------------------
 -- | Main entry point
@@ -102,7 +103,8 @@ evolution vec population n g log = do
             repopulate selected popsize stringlength
 
     let (g',_) = split g
-    mapM_ (log <!>) newpop
+    mapM_ (log <!>) (take 10 newpop)
+    mapM_ ((log <!!>) . str) (take 5 newpop)
     evolution vec newpop (n-1) g' log
 
 -----------------------------------------------------------------------------------

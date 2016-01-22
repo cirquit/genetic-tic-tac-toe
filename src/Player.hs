@@ -97,12 +97,18 @@ play boardV p1 p2 board =
                     case gameState b' of
                         Ongoing -> playGame v p2 (addTurn p1) b'
                         Tie     -> (addTurn p1, p2, Tie)
-                        (Win w) -> (addTurn p1, p2, Win w)
-                (False, _, _) -> (p1, p2, Win (prev turn))
+                        (Win X) -> (addTurn p1, p2, Win X)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        (Win O) -> (addTurn p2, p1, Win O)     -- 
+                (False, _, b')  -> 
+                    case turn of
+                        X -> (p1, p2, Win O)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        O -> (p2, p1, Win X)     -- 
 
-        prev = succ
-
- 
+---------------------------------------------------------------------
+-- | loop for two players to play a game with IO
+--
+--   returns both players and the game result
+--
 playIO :: Vector Board -> Player -> Player -> Board ->  IO (Player, Player, Result Value)
 playIO boardV p1 p2 board = playGame boardV p1 p2 board >>= \res -> 
     case res of
@@ -116,12 +122,14 @@ playIO boardV p1 p2 board = playGame boardV p1 p2 board >>= \res ->
             case nextMove v p1 b of
                 (True, _, b') ->
                     case gameState b' of
-                        Ongoing -> print b' >> playGame v p2 (addTurn p1) b'
-                        Tie     -> print b' >> putStrLn (show ((Tie) :: Result Value)) >> return (addTurn p1, p2, Tie)
-                        (Win w) -> print b' >> putStrLn (show p1 ++ " won!")           >> return (addTurn p1, p2, (Win w))
-                (False, move, b') -> putStrLn (show move ++ " is invalid") >> putStrLn (show p1 ++ " won!") >> return (p1, p2, Win (prev turn))
-
-        prev = succ
+                        Ongoing  -> print b' >> playGame v p2 (addTurn p1) b'
+                        Tie      -> print b' >> putStrLn (show ((Tie) :: Result Value)) >> return (addTurn p1, p2, Tie)
+                        (Win X)  -> print b' >> putStrLn (show p1 ++ " won!")           >> return (addTurn p1, p2, (Win X))                     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        (Win O)  -> print b' >> putStrLn (show p1 ++ " won!")           >> return (addTurn p2, p1, (Win O))                     -- 
+                (False, move, _) ->
+                    case turn of
+                        X -> putStrLn (show move ++ " is invalid") >> putStrLn (show p1 ++ " won!") >> return (p1, p2, Win O) -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        O -> putStrLn (show move ++ " is invalid") >> putStrLn (show p1 ++ " won!") >> return (p2, p1, Win X) --
 
 
 
