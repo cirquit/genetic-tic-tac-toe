@@ -50,12 +50,12 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 20      -- populationsize
+popsize      = 1000    -- populationsize
 stringlength = 827     -- possible boardstates
 delta        = 0.01    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
 tetha        = 0.7     -- percent to be removed by natural selection
-generations  = 3
+generations  = 2  
 
 -------------------------------------------------------------------------
 -- | Main entry point
@@ -89,10 +89,10 @@ evolution vec population n g log = do
     log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
 
     let newpop = flip evalRand g $ do
-            let parents = populationPlay vec population
+            let parents = populationPlayEmptyBoard vec population
             children  <- rouletteCrossover uniformCrossover parents
             mutants   <- mutate delta beta children
-            let children' = populationPlay vec children
+            let children' = populationPlayEmptyBoard vec children
                 selected  = naturalselection tetha (parents ++ children')
             repopulate selected popsize stringlength
 
@@ -210,3 +210,29 @@ crossoverTest = do
 
         l = flip evalRand g $ rouletteCrossover onePointCrossover [p1,p2,p3,p4,p5,p6]
     mapM_ print l
+
+naturalselectionTest :: IO ()
+naturalselectionTest = do
+    let p1 = Player "AAAAAAAAAA"  31   7   -- 4.428
+        p2 = Player "BBBBBBBBBB"  30   8   -- 3.75
+        p3 = Player "CCCCCCCCCC"  35   9   -- 3.88
+        p4 = Player "DDDDDDDDDD"  10  11   -- 0.9
+        p5 = Player "EEEEEEEEEE" 114  10   -- 11.4
+        p6 = Player "FFFFFFFFFF"  60  67   -- 0.89
+
+        popsize = 6
+        tetha = 0.7
+        stringlength = 10
+
+        l = naturalselection tetha [p1,p2,p3,p4,p5,p6]
+        g = mkStdGen 12345
+        l' = flip evalRand g $ repopulate l popsize stringlength
+    mapM_ print l'
+
+testPlay :: String -> Int -> IO ()
+testPlay s i = do
+    let p = Player s 0 1
+    vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
+    playAI vec p i
+
+

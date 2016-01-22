@@ -145,6 +145,23 @@ populationPlay v (p1:ps) = p1' : populationPlay v ps'
                     (p1' , p2' , _) = play v p1  p2  (v ! n)
                     (p2'', p1'', _) = play v p2' p1' (v ! n)
 
+populationPlayEmptyBoard :: Vector Board -> [Player] -> [Player]
+populationPlayEmptyBoard v [] = []
+populationPlayEmptyBoard v (p1:ps) = p1' : populationPlayEmptyBoard v ps'
+    where 
+          (p1', ps') = go v p1 ps []
+
+          go :: Vector Board -> Player -> [Player] -> [Player] -> (Player, [Player])
+          go v p1     []  acc  = (p1, reverse acc)
+          go v p1 (p2:ps) acc  = go v p1' ps (p2':acc)
+              where
+                   (p1', p2') = playEmptyBoard v p1 p2
+
+          playEmptyBoard :: Vector Board -> Player -> Player -> (Player, Player)
+          playEmptyBoard v p1 p2 = (p1'', p2'')
+              where
+                   (p1',  p2' , _) = play v p1  p2  emptyBoard
+                   (p2'', p1'', _) = play v p2' p1' emptyBoard
 {-
 populationPlayIO :: Vector Board -> [Player] -> IO [Player]
 populationPlayIO v      [] = return []
