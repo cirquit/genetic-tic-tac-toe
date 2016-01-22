@@ -55,7 +55,7 @@ emptyBoard :: Board
 emptyBoard = Board e e e  -- row 1
                    e e e  -- row 2
                    e e e  -- row 3
-                   X      -- start
+                   X      -- start move
   where e = Nothing
 
 
@@ -82,7 +82,7 @@ rotate b0 = [b0, b1, b2, b3, b4, b5, b6, b7]
                                , b1 = b3         , b3 = b1
                                , c1 = c3         , c3 = c1 }
 
--- | 
+-- | Encoding for moves
 --
 toMove :: Char -> Move
 toMove 'A' = A1
@@ -97,7 +97,7 @@ toMove 'I' = C3
 toMove  x  = error ("BoardLib.toMove: could not find the move: <" ++ x:">")
 
 
--- | board parser for every possible gamestate encoded in a sinlge .txt-file
+-- | board parser for every possible gamestate encoded in a single .txt-file
 -- 
 toBoardVector :: String -> Vector Board
 toBoardVector input = go (lines input) []

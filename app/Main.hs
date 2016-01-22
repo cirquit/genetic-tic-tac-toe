@@ -11,13 +11,15 @@ import System.Posix.Signals
 import System.Exit
 import Control.Concurrent
 import Control.Monad.Random
+
 -----------------------------------------------------------------------------------
 
 import Genetic  -- (genIndividual, genIndividuals)
 import Crossover
-import Player --   (play,playIO)
+import Player   -- (play,playIO)
 import BoardLib -- (createBoardPositions)
 import BoardTypes
+import SimpleLogger
 -----------------------------------------------------------------------------------
 
 
@@ -53,20 +55,39 @@ stringlength = 827     -- possible boardstates
 delta        = 0.01    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
 tetha        = 0.7     -- percent to be removed by natural selection
-generations  = 2
+generations  = 3
 
+-------------------------------------------------------------------------
+-- | Main entry point
+--
 main :: IO ()
 main = do
+
+--  create board positions
     vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
+    
+-- set up logger
+    fLog   <- createFileLog "log/" ""
+    stdLog <- createStdoutLog
+    let logger = mergeLogs [fLog, stdLog]
+    
+-- create initial population
     let g      = mkStdGen 1345
         (g',_) = split g
         population = flip evalRand g $ genIndividuals popsize stringlength
-    evolution vec population generations g'
 
-evolution :: V.Vector Board -> [Player] -> Int -> StdGen -> IO ()
-evolution vec population 0 _ = mapM_ (putStrLn . str) (take 10 population)
-evolution vec population n g = do
-    putStrLn $ "\nGeneration(s) left to live: " ++ show n
+-- start the evolution
+    evolution vec population generations g' logger
+
+-------------------------------------------------------------------------
+-- | Automatic evolution dependent on 'generations'
+--
+evolution :: V.Vector Board -> [Player] -> Int -> StdGen -> Logger -> IO ()
+evolution vec population 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
+evolution vec population n g log = do
+
+    log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
+
     let newpop = flip evalRand g $ do
             let parents = populationPlay vec population
             children  <- rouletteCrossover uniformCrossover parents
@@ -74,53 +95,33 @@ evolution vec population n g = do
             let children' = populationPlay vec children
                 selected  = naturalselection tetha (parents ++ children')
             repopulate selected popsize stringlength
+
     let (g',_) = split g
-    mapM_ print newpop
-    evolution vec newpop (n-1) g'
-
-
-{-
- evolution :: V.Vector Board -> [Player] -> StdGen -> Int -> IO ()
- evolution vec population g0 0 = mapM_ (putStrLn . str) (take 10 population)
- evolution vec population g0 n = do
-             
-            tid <- myThreadId
-            installHandler keyboardSignal (Catch (safeExit population vec tid)) Nothing
-            threadDelay (1000000000)
-            
-            putStrLn $ "\nGeneration(s) left to live: " ++ show n
-            let !parents          = populationPlay vec population
-                (!children , g1)  = rouletteCrossover uniformCrossover g0 parents
-                (!children', g2)  = mutate delta beta g1 children
-                !children''       = populationPlay vec children'
-                !selected         = naturalselection tetha (parents ++ children'')
-                (npopulation, g3) = repopulate selected popsize stringlength g2
-            mapM_ print npopulation
-            evolution vec npopulation g3 (n-1)
--}
+    mapM_ (log <!>) newpop
+    evolution vec newpop (n-1) g' log
 
 -----------------------------------------------------------------------------------
 -- | User input for communication
-
-{-
- customEvolution :: V.Vector Board -> [Player] -> StdGen -> IO ()
- customEvolution vec population g0 = do
-     hSetBuffering stdout NoBuffering
-     putStr "Another round? (y/n) or (p)rint "
-     input <- getLine
-     case input of
-         "y" -> do
-             let !parents          = populationPlay vec population
-                 (!children , g1)  = rouletteCrossover uniformCrossover g0 parents
-                 (!children', g2)  = mutate delta beta g1 children
-                 !children''       = populationPlay vec children'
-                 !selected         = naturalselection tetha (parents ++ children'')
-                 (npopulation, g3) = repopulate selected popsize stringlength g2
-             mapM_ print npopulation
-             customEvolution vec npopulation g3
-         "p" -> mapM_ (putStrLn . str) (take 5 population)
-         _   -> putStrLn "Exiting..." >> mapM_ print population
--}
+-- 
+customEvolution :: V.Vector Board -> [Player] -> StdGen -> Logger -> IO ()
+customEvolution vec population g log = do
+    log <!!> "Another round? (y/n) or (p)rint "
+    input <- getLine
+    log <!!> input
+    case input of
+        "y" -> do
+           let newpop = flip evalRand g $ do
+                    let parents = populationPlay vec population
+                    children  <- rouletteCrossover uniformCrossover parents
+                    mutants   <- mutate delta beta children
+                    let children' = populationPlay vec children
+                        selected  = naturalselection tetha (parents ++ children')
+                    repopulate selected popsize stringlength
+           let (g',_) = split g
+           log <!> newpop
+           customEvolution vec newpop g' log
+        "p" -> mapM_ ((log <!>) . str) (take 10 population) >> customEvolution vec population g log
+        _   -> mapM_ ( log <!>)        (take 10 population)
 
 {-
 safeExit :: [Player] -> V.Vector Board -> ThreadId -> IO ()
@@ -161,7 +162,6 @@ safeExit population vec tid = do
            loop population vec input
     loop population vec _      = putStrLn "Sorry, something didn't work...try again" >> putStr "Command: " >> getLine >>= \input -> loop population vec input
 -}
-
 -----------------------------------------------------------------------------------
 -- ## Tests ##
 

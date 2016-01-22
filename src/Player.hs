@@ -22,18 +22,47 @@ import BoardLib   (playOn, emptyBoard, rotate, toMove, gameState, isValidOn)
 -- | Player definition & instances
 --
 -- 
-data Player = Player { str     :: String  -- moves encoded as Chars for every possible boardstate
-                     , fitness :: Int     -- TODO: rework
-                     , games   :: Int }   -- amount of games played
+data Player = Player { str        :: String  -- moves encoded as Chars for every possible boardstate
+                     , turnsLived :: Int     -- turns lived
+                     , games      :: Int }   -- amount of games played
   deriving Eq
 
+
 instance Show Player where
-    show (Player str fitness games) = unwords ["Player #", take 20 str, "# Fitness in %:", percent, "# Not Lost:", (show fitness), "# Games:", (show games), "\n"]
-      where percent = take 6 $ show ((fromIntegral fitness) / (fromIntegral games))
+    show (Player str turnsLived games) = 
+        unwords [ "# Player"               , take 20 str
+                , "# Avg turns lived in %:", percent
+                , "# Games:"               , show games
+                ]
+      where percent = take 6 $ show ((fromIntegral turnsLived) / (fromIntegral games))
 --------------------------------------------------------------------
 
+
+--------------------------------------------------------------------
+-- | shortcut to increment turnsLived count
+--
+addTurn :: Player -> Player
+addTurn p = p { turnsLived = turnsLived p + 1 }
+
+--------------------------------------------------------------------
+-- | shortcut to increment game count
+--
+addGame :: Player -> Player
+addGame p = p { games = games p + 1 }
+
+
+--------------------------------------------------------------------
+-- | select the move from the chromosome based on the index
+--
 getMove :: Player -> Int -> Move
 getMove (Player str _ _) i = toMove (str !! i)
+
+
+--------------------------------------------------------------------
+-- | calculates the next move for a single player based on the current board state
+--  
+--   returns the validity of the move, the calculated move and the new current board state
+--
 
 nextMove :: Vector Board -> Player -> Board -> (Bool, Move, Board)
 nextMove v player board = (move `isValidOn` board, move, move `playOn` board)
@@ -48,26 +77,32 @@ nextMove v player board = (move `isValidOn` board, move, move `playOn` board)
               (Just i) -> i -- trace ("Index: " ++ show (i + 1)) (i)
               Nothing  -> tryRotations bs v
 
+
+---------------------------------------------------------------------
+-- | loop for two players to play a game
+--
+--   returns both players and the game result
+--
 play :: Vector Board -> Player -> Player -> Board -> (Player, Player, Result Value)
 play boardV p1 p2 board = 
     case playGame boardV p1 p2 board of
-        (Win X) -> (p1 { fitness = fitness p1 + 1 , games = games p1 + 1 }, p2                            { games = games p2 + 1 }, (Win X))
-        (Win O) -> (p1                            { games = games p1 + 1 }, p2 { fitness = fitness p2 + 1 , games = games p2 + 1 }, (Win O))
-        Tie     -> (p1 { fitness = fitness p1 + 1 , games = games p1 + 1 }, p2 { fitness = fitness p2 + 1 , games = games p2 + 1 },  Tie   )
-        Ongoing -> error "Game is not finished but was evaluated by play"
+        (p1', p2', (Win X)) -> (addGame p1', addGame p2', (Win X))
+        (p1', p2', (Win O)) -> (addGame p1', addGame p2', (Win O))
+        (p1', p2', Tie    ) -> (addGame p1', addGame p2',  Tie   )
 
-  where playGame :: Vector Board -> Player -> Player -> Board -> Result Value
+  where playGame :: Vector Board -> Player -> Player -> Board -> (Player, Player, Result Value)
         playGame v p1 p2 b@Board{..} = 
             case nextMove v p1 b of
                 (True, _, b') ->
                     case gameState b' of
-                        Ongoing -> playGame v p2 p1 b'
-                        Tie     -> Tie
-                        (Win w) -> Win w
-                (False, _, _) -> Win (prev turn)
+                        Ongoing -> playGame v p2 (addTurn p1) b'
+                        Tie     -> (addTurn p1, p2, Tie)
+                        (Win w) -> (addTurn p1, p2, Win w)
+                (False, _, _) -> (p1, p2, Win (prev turn))
 
         prev = succ
 
+{- 
 playIO :: Vector Board -> Player -> Player -> Board ->  IO (Player, Player, Result Value)
 playIO boardV p1 p2 board = playGame boardV p1 p2 board >>= \res -> 
     case res of
@@ -89,6 +124,8 @@ playIO boardV p1 p2 board = playGame boardV p1 p2 board >>= \res ->
 
         prev = succ
 
+-}
+
 populationPlay :: Vector Board -> [Player] -> [Player]
 populationPlay v      [] = []
 populationPlay v (p1:ps) = p1' : populationPlay v ps'
@@ -108,7 +145,7 @@ populationPlay v (p1:ps) = p1' : populationPlay v ps'
                     (p1' , p2' , _) = play v p1  p2  (v ! n)
                     (p2'', p1'', _) = play v p2' p1' (v ! n)
 
-
+{-
 populationPlayIO :: Vector Board -> [Player] -> IO [Player]
 populationPlayIO v      [] = return []
 populationPlayIO v (p1:ps) = do
@@ -128,24 +165,27 @@ populationPlayIO v (p1:ps) = do
               (p1' , p2' , _) <- playIO v p1  p2  (v ! n)
               (p2'', p1'', _) <- playIO v p2' p1' (v ! n)
               playAllBoardsIO (v, n - 1) p1'' p2''
+-}
+
 
 sortByAscRatio :: [Player] -> [Player]
-sortByAscRatio = sortBy (comparing ratio)
+sortByAscRatio = sortBy (comparing turnsRatio)
 
 sortByDscRatio :: [Player] -> [Player]
-sortByDscRatio = sortBy (flip (comparing ratio))
+sortByDscRatio = sortBy (flip (comparing turnsRatio))
 
-ratio :: Player -> Double
-ratio x = toD (fitness x) / toD (games x)
+
+turnsRatio :: Player -> Double
+turnsRatio x = toD (turnsLived x) / toD (games x)
     where toD = fromIntegral
 
 
 sumRatios :: [Player] -> Double
-sumRatios = foldl (\acc x -> acc + ratio x) 0.0
+sumRatios = foldl (\acc x -> acc + turnsRatio x) 0.0
 
 
 ascendingPieChart :: [Player] -> [(Player, Double)]
-ascendingPieChart players = foldl (\acc x -> (x, ratio x / sumR) : acc) [] descPlayers
+ascendingPieChart players = foldl (\acc x -> (x, turnsRatio x / sumR) : acc) [] descPlayers
     where sumR        = sumRatios players
           descPlayers = sortByDscRatio players
 
