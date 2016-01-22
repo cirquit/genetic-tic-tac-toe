@@ -102,29 +102,28 @@ play boardV p1 p2 board =
 
         prev = succ
 
-{- 
+ 
 playIO :: Vector Board -> Player -> Player -> Board ->  IO (Player, Player, Result Value)
 playIO boardV p1 p2 board = playGame boardV p1 p2 board >>= \res -> 
     case res of
-        (Win X) -> return (p1 { fitness = fitness p1 + 1 , games = games p1 + 1 }, p2                            { games = games p2 + 1 }, (Win X))
-        (Win O) -> return (p1                            { games = games p1 + 1 }, p2 { fitness = fitness p2 + 1 , games = games p2 + 1 }, (Win O))
-        Tie     -> return (p1 { fitness = fitness p1 + 1 , games = games p1 + 1 }, p2 { fitness = fitness p2 + 1 , games = games p2 + 1 },  Tie   )
-        Ongoing -> error "Game is not finished but was evaluated by playIO"
+        (p1', p2', (Win X)) -> return (addGame p1', addGame p2', (Win X))
+        (p1', p2', (Win O)) -> return (addGame p1', addGame p2', (Win O))
+        (p1', p2', Tie    ) -> return (addGame p1', addGame p2',  Tie   )
 
 
-  where playGame :: Vector Board -> Player -> Player -> Board -> IO (Result Value)
+  where playGame :: Vector Board -> Player -> Player -> Board -> IO (Player, Player, Result Value)
         playGame v p1 p2 b@Board{..} = 
             case nextMove v p1 b of
                 (True, _, b') ->
                     case gameState b' of
-                        Ongoing -> print b' >> playGame v p2 p1 b'
-                        Tie     -> print b' >> putStrLn (show ((Tie) :: Result Value)) >> return Tie
-                        (Win w) -> print b' >> putStrLn (show p1 ++ " won!") >> return (Win w)
-                (False, move, b') -> putStrLn (show move ++ " is invalid") >> putStrLn (show p1 ++ " won!") >> return (Win (prev turn))
+                        Ongoing -> print b' >> playGame v p2 (addTurn p1) b'
+                        Tie     -> print b' >> putStrLn (show ((Tie) :: Result Value)) >> return (addTurn p1, p2, Tie)
+                        (Win w) -> print b' >> putStrLn (show p1 ++ " won!")           >> return (addTurn p1, p2, (Win w))
+                (False, move, b') -> putStrLn (show move ++ " is invalid") >> putStrLn (show p1 ++ " won!") >> return (p1, p2, Win (prev turn))
 
         prev = succ
 
--}
+
 
 populationPlay :: Vector Board -> [Player] -> [Player]
 populationPlay v      [] = []

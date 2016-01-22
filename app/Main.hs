@@ -50,12 +50,12 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 1000    -- populationsize
+popsize      = 200    -- populationsize
 stringlength = 827     -- possible boardstates
-delta        = 0.01    -- chance to mutate
-beta         = 0.05    -- percent of the string to mutate
+delta        = 0.15    -- chance to mutate
+beta         = 0.10    -- percent of the string to mutate
 tetha        = 0.7     -- percent to be removed by natural selection
-generations  = 2  
+generations  = 500
 
 -------------------------------------------------------------------------
 -- | Main entry point
@@ -72,7 +72,7 @@ main = do
     let logger = mergeLogs [fLog, stdLog]
     
 -- create initial population
-    let g      = mkStdGen 1345
+    let g      = mkStdGen 13457398164723746
         (g',_) = split g
         population = flip evalRand g $ genIndividuals popsize stringlength
 
