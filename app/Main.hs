@@ -18,6 +18,7 @@ import Genetic  -- (genIndividual, genIndividuals)
 import Crossover
 import Player   -- (play,playIO)
 import BoardLib -- (createBoardPositions)
+import BoardCreator
 import BoardTypes
 import SimpleLogger
 -----------------------------------------------------------------------------------
@@ -34,7 +35,7 @@ import SimpleLogger
 -- Current issues:
 
 -- * Inbreeding...
--- * TODO: Hash 827 board states - Hash all rotations and store all 9 in a 
+-- * TODO: Hash 827 board states - Hash all rotations and store all 9 in a (Map Hash [Hash])
 
 
 -- real win = 1.0 count + 1
@@ -56,12 +57,12 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 500    -- populationsize
+popsize      = 100    -- populationsize
 stringlength = 827     -- possible boardstates
 delta        = 0.1    -- chance to mutate
 beta         = 0.10    -- percent of the string to mutate
 tetha        = 0.7     -- percent to be removed by natural selection
-generations  = 200
+generations  = 100
 
 -------------------------------------------------------------------------
 -- | Main entry point
@@ -71,9 +72,12 @@ main = do
 
 --  create board positions
     vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
+
+--    hashmap <- createHashMap
     
 -- set up logger
-    fLog   <- createFileLog "log/" ""
+    time   <- getTime
+    fLog   <- createFileLog ("log/" ++ time ++ "/") ""
     stdLog <- createStdoutLog
     let logger = mergeLogs [fLog, stdLog]
     
@@ -104,7 +108,7 @@ evolution vec population n g log = do
 
     let (g',_) = split g
     mapM_ (log <!>) (take 10 newpop)
-    mapM_ ((log <!!>) . str) (take 5 newpop)
+    mapM_ ((log <!!>) . str) (take 10 newpop)
     evolution vec newpop (n-1) g' log
 
 -----------------------------------------------------------------------------------
@@ -241,5 +245,3 @@ testPlay s i = do
     let p = Player s 0 1
     vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
     playAI vec p i
-
-

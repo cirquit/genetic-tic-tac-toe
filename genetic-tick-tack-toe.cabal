@@ -21,6 +21,7 @@ library
                      , Genetic
                      , Crossover
                      , SimpleLogger
+                     , BoardCreator
   build-depends:       base >= 4.7 && < 5
                      , vector
                      , random
@@ -29,6 +30,8 @@ library
                      , mtl
                      , directory
                      , filepath
+                     , hashable
+                     , containers
   default-language:    Haskell2010
 
 executable learn-plz
