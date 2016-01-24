@@ -19,7 +19,7 @@ genIndividual :: MonadRandom m => Int -> m Player
 genIndividual len = do
   stream <- getRandomRs ('A', 'I')
   let chrom = take len stream
-  return $ Player chrom 0 0 0 1
+  return $ Player chrom 0 0 0 0 1
 
 
 -- |                        Population size  Chromosome length
@@ -58,15 +58,15 @@ mutate = go []
 --                                                β
 --                                                |
           mutateP :: MonadRandom m => Player -> Double -> m Player
-          mutateP (Player l turns wins ties games) = go ([], turns, wins, ties, games) l
-            where go :: MonadRandom m => (String, Int, Int, Int, Int) -> String -> Double -> m Player
-                  go (!acc, turns, wins, ties, games)     []    _ = return $ Player (reverse acc) turns wins ties games
-                  go (!acc, turns, wins, ties, games) (x:xs) beta = do
+          mutateP (Player l turns wins ties losses games) = go ([], turns, wins, ties, losses, games) l
+            where go :: MonadRandom m => (String, Int, Int, Int, Int, Int) -> String -> Double -> m Player
+                  go (!acc, turns, wins, ties, losses, games)     []    _ = return $ Player (reverse acc) turns wins ties losses games
+                  go (!acc, turns, wins, ties, losses, games) (x:xs) beta = do
                       v <- getRandomR (0.0, 1.0)
                       c <- getRandomR ('A', 'I')
                       case beta >= v of
-                          True  -> go ((c:acc), turns, wins, ties, games) xs beta
-                          False -> go ((x:acc), turns, wins, ties, games) xs beta
+                          True  -> go ((c:acc), turns, wins, ties, losses, games) xs beta
+                          False -> go ((x:acc), turns, wins, ties, losses, games) xs beta
 
 -- | fills up the player list with new individuals up to the population size
 --
