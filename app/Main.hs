@@ -13,6 +13,9 @@ import System.Exit
 import Control.Concurrent
 import Control.Monad.Random
 import Data.Map as M (Map(..))
+
+import Control.Parallel.Strategies
+
 -----------------------------------------------------------------------------------
 
 import Genetic  -- (genIndividual, genIndividuals)
@@ -96,11 +99,12 @@ evolution hmap population n g log = do
 
     log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
 
-    let newpop = flip evalRand g $ do
-            let parents = populationPlayEmptyBoard hmap population
+    let strategy = parList rseq
+        newpop = flip evalRand g $ do
+            let parents = populationPlayEmptyBoard hmap population `using` strategy
             children  <- rouletteCrossover uniformCrossover parents
             mutants   <- mutate delta beta children
-            let children' = populationPlayEmptyBoard hmap children
+            let children' = populationPlayEmptyBoard hmap children `using` strategy
                 selected  = naturalselection tetha (parents ++ children')
             repopulate selected popsize stringlength
 
