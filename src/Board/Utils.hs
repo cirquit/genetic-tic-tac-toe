@@ -30,7 +30,6 @@ next = succ
 -- | returns Tie, Ongoing or Win [X | O]
 --
 gameState :: Board -> Result Value
-gameState (Board (Just _) (Just _) (Just _) (Just _) (Just _) (Just _) (Just _) (Just _) (Just _) _) = Tie
 gameState b@Board{..}
     | same a1 a2 a3 = Win (succ turn)
     | same b1 b2 b3 = Win (succ turn)
@@ -40,9 +39,10 @@ gameState b@Board{..}
     | same a3 b3 c3 = Win (succ turn)
     | same a1 b2 c3 = Win (succ turn)
     | same a3 b2 c1 = Win (succ turn)
-    | otherwise     = Ongoing
   where same (Just a) (Just b) (Just c) = a == b && b == c
         same       _        _        _  = False
+gameState (Board (Just _) (Just _) (Just _) (Just _) (Just _) (Just _) (Just _) (Just _) (Just _) _) = Tie
+gameState _                                                                                          = Ongoing
 
 ---------------------------------------------------------------------
 -- | checks validity by the changes on the board after the move
