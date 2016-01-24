@@ -164,27 +164,24 @@ playIO boardV p1 p2 board = playGame boardV p1 p2 board >>= \res ->
 ---------------------------------------------------------------------
 -- | Lets the population play on every board possible
 -- 
---   TODO: update for use with Vector AND HashMap
-{-
-populationPlay :: Vector Board -> [Player] -> [Player]
-populationPlay v      [] = []
-populationPlay v (p1:ps) = p1' : populationPlay v ps'
+populationPlay :: Vector Board -> Map Int (Int, Rotation) -> [Player] -> [Player]
+populationPlay v m      [] = []
+populationPlay v m (p1:ps) = p1' : populationPlay v m ps'
     where
-          (p1', ps') = go v p1 ps []
+          (p1', ps') = go v m p1 ps []
 
-          go :: Vector Board -> Player -> [Player] -> [Player] -> (Player, [Player])
-          go v p1     []  acc  = (p1, reverse acc)
-          go v p1 (p2:ps) acc  = go v p1' ps (p2':acc)
+          go :: Vector Board -> Map Int (Int, Rotation) -> Player -> [Player] -> [Player] -> (Player, [Player])
+          go v m p1     []  acc  = (p1, reverse acc)
+          go v m p1 (p2:ps) acc  = go v m p1' ps (p2':acc)
               where
-                   (p1', p2') = playAllBoards (v, V.length v - 1) p1 p2
+                   (p1', p2') = playAllBoards (v, V.length v - 1) m p1 p2
 
-          playAllBoards :: (Vector Board, Int) -> Player -> Player -> (Player, Player)
-          playAllBoards (v, -1) p1 p2 = (p1, p2)
-          playAllBoards (v,  n) p1 p2 = playAllBoards (v, n - 1) p1'' p2''
+          playAllBoards :: (Vector Board, Int) -> Map Int (Int, Rotation) -> Player -> Player -> (Player, Player)
+          playAllBoards (v, -1) m p1 p2 = (p1, p2)
+          playAllBoards (v,  n) m p1 p2 = playAllBoards (v, n - 1) m p1'' p2''
               where
-                    (p1' , p2' , _) = play v p1  p2  (v ! n)
-                    (p2'', p1'', _) = play v p2' p1' (v ! n)
--}
+                    (p1' , p2' , _) = play m p1  p2  (v ! n)
+                    (p2'', p1'', _) = play m p2' p1' (v ! n)
 
 ---------------------------------------------------------------------
 -- | Lets the population play on an empty board

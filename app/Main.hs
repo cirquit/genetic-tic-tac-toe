@@ -6,7 +6,7 @@ module Main where
 
 import Control.Monad
 import System.Random
-import qualified Data.Vector as V
+import Data.Vector as V (Vector(..), fromList)
 import System.IO                  (hSetBuffering, stdout, BufferMode(..))
 import System.Posix.Signals
 import System.Exit
@@ -76,6 +76,8 @@ main = do
 --  create board positions
     hashmap <- createHashMap "lib/sortedCombos827.txt"
     
+    vec <- V.fromList <$> createBoardStatesFrom "lib/sortedCombos827.txt"
+
 -- set up logger
     time   <- getTime
     fLog   <- createFileLog ("log/" ++ time ++ "/") ""
@@ -83,35 +85,35 @@ main = do
     let logger = mergeLogs [fLog, stdLog]
     
 -- create initial population
-    let g      = mkStdGen 13457398164723746
+    let g      = mkStdGen 134573981648723746
         (g',_) = split g
         population = flip evalRand g $ genIndividuals popsize stringlength
 
 -- start the evolution
-    evolution hashmap population generations g' logger
+    evolution hashmap vec population generations g' logger
 
 -------------------------------------------------------------------------
 -- | Automatic evolution dependent on 'generations'
 --
-evolution :: Map Int (Int, Rotation) -> [Player] -> Int -> StdGen -> Logger -> IO ()
-evolution hmap population 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
-evolution hmap population n g log = do
+evolution :: Map Int (Int, Rotation) -> Vector Board -> [Player] -> Int -> StdGen -> Logger -> IO ()
+evolution hmap vec population 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
+evolution hmap vec population n g log = do
 
     log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
 
     let strategy = parList rseq
         newpop = flip evalRand g $ do
-            let parents = populationPlayEmptyBoard hmap population `using` strategy
+            let parents = populationPlay vec hmap population `using` strategy
             children  <- rouletteCrossover uniformCrossover parents
             mutants   <- mutate delta beta children
-            let children' = populationPlayEmptyBoard hmap children `using` strategy
+            let children' = populationPlay vec hmap children `using` strategy
                 selected  = naturalselection tetha (parents ++ children')
             repopulate selected popsize stringlength
 
     let (g',_) = split g
     mapM_ (log <!>) (take 10 newpop)
     mapM_ ((log <!!>) . str) (take 10 newpop)
-    evolution hmap newpop (n-1) g' log
+    evolution hmap vec newpop (n-1) g' log
 
 -----------------------------------------------------------------------------------
 -- ## Tests ##
