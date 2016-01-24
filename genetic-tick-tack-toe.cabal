@@ -1,13 +1,13 @@
 name:                genetic-tick-tack-toe
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            A proof of concept for genetic algorithms to learn the game logic of tic-tac-toe by itself
 description:         Please see README.md
 homepage:            http://github.com/cirquit/genetic-tick-tack-toe#readme
 license:             MIT
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2010 Author Here
+author:              Alexader Isenko
+maintainer:          alex.isenko@protonmail.com
+copyright:           2010 Alexader Isenko
 category:            Web
 build-type:          Simple
 -- extra-source-files:
