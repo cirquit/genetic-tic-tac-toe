@@ -27,16 +27,19 @@ data Player = Player { str         :: String     -- moves encoded as Chars for e
                      , turnsLived  :: Int        -- turns lived
                      , wins        :: Int        -- total wins
                      , ties        :: Int        -- total ties
+                     , losses      :: Int
                      , games       :: Int }      -- amount of games played
   deriving Eq
 
 
 instance Show Player where
-    show (Player str turnsLived wins ties games) = 
+    show p@(Player str turnsLived wins ties losses games) = 
         unwords [ "# Player"           , take 20 str
-                , "# Avg turns lived:" , percent
+              --  , "# Avg turns lived:" , percent
                 , "# Wins:"            , show wins
                 , "# Ties:"            , show ties
+                , "# Losses:"          , show losses
+                , "# Fitness:"         , show (fitnessRatio p)
                 , "# Games:"           , show games
                 ]
       where percent = take 6 $ show ((fromIntegral turnsLived) / (fromIntegral games))
@@ -68,6 +71,14 @@ addWin :: Player -> Player
 addWin p = p { wins = wins p + 1 }
 
 
+--------------------------------------------------------------------
+-- | shortcut to increment win count
+--
+addLoss :: Player -> Player
+addLoss p = p { losses = losses p + 1 }
+
+
+
 {- DEPRECATED -}
 --------------------------------------------------------------------
 -- | select the move from the chromosome based on the index
@@ -78,7 +89,7 @@ getMove (Player str _ _) i = toMove (str !! i)
 -}
 
 getMoveRot :: Player -> Int -> Rotation -> Move
-getMoveRot (Player str _ _ _ _) i rot = toMoveRot (str !! i) rot
+getMoveRot (Player str _ _ _ _ _) i rot = toMoveRot (str !! i) rot
 
 --------------------------------------------------------------------
 -- | calculates the next move for a single player based on the current board state
@@ -112,13 +123,13 @@ play hmap p1 p2 board =
                 (True, _, b') ->
                     case gameState b' of
                         Ongoing -> playGame hmap p2 (addTurn p1) b'
-                        Tie     -> ((addTie . addTurn) p1, addTie p2, Tie)
-                        (Win X) -> ((addWin . addTurn) p1, p2, Win X)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
-                        (Win O) -> ((addWin . addTurn) p2, p1, Win O)     -- 
+                        Tie     -> ((addTie . addTurn) p1, addTie  p2, Tie  )
+                        (Win X) -> ((addWin . addTurn) p1, addLoss p2, Win X)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        (Win O) -> ((addWin . addTurn) p2, addLoss p1, Win O)     -- 
                 (False, _, b')  -> 
                     case turn of
-                        X -> (p1,        addTie p2, Win O)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
-                        O -> (addTie p2,        p1, Win X)     -- 
+                        X -> (       p1,  addTie p2, Win O)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        O -> (addTie p2,         p1, Win X)     -- 
 
 ---------------------------------------------------------------------
 -- | loop for two players to play a game with IO
@@ -226,14 +237,16 @@ sortByDscRatio = sortBy (flip (comparing fitnessRatio))
 
 
 fitnessRatio :: Player -> Double
-fitnessRatio x = winRatio * turnsRatio
-    where 
+fitnessRatio p = winRatio -- * turnsRatio
+    where
 
-          winRatio   = (toD (wins x) +  0.5 * toD (ties x)) / gamesD  -- [0..1] (bounds)
+          winRatio = toD (3 * wins p + 2 * ties p + losses p) / gamesD
 
-          turnsRatio = toD (turnsLived x)  / gamesD                   -- [0..4,5]         (bounds)
+          -- winRatio   = (toD (wins x) +  0.5 * toD (ties x)) / gamesD  -- [0..1] (bounds)
 
-          gamesD = toD (games x)
+          -- turnsRatio = toD (turnsLived x)  / gamesD                   -- [0..4,5]         (bounds)
+
+          gamesD = toD (games p)
 
           toD = fromIntegral
 

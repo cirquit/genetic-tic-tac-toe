@@ -57,8 +57,8 @@ onePointCrossover p1 p2 = do
         (p1A , p1B)  = splitAt (round (percent * len)) (str p1)
         (p2A , p2B)  = splitAt (round (percent * len)) (str p2)
 
-        p3 = Player (p1A ++ p2B) 0 0 0 1
-        p4 = Player (p2A ++ p1B) 0 0 0 1
+        p3 = Player (p1A ++ p2B) 0 0 0 0 1
+        p4 = Player (p2A ++ p1B) 0 0 0 0 1
 
     return (p3, p4)
 
@@ -92,8 +92,8 @@ twoPointCrossover p1 p2 = do
         (p1B, p1C) = splitAt (round (point2 * sublen)) p1Rest
         (p2B, p2C) = splitAt (round (point2 * sublen)) p2Rest
 
-        p3 = Player (p1A ++ p2B ++ p1C) 0 0 0 1
-        p4 = Player (p2A ++ p1B ++ p2C) 0 0 0 1
+        p3 = Player (p1A ++ p2B ++ p1C) 0 0 0 0 1
+        p4 = Player (p2A ++ p1B ++ p2C) 0 0 0 0 1
 
     return (p3, p4)
 
@@ -113,7 +113,7 @@ uniformCrossover :: MonadRandom m => Player -> Player -> m (Player, Player)
 uniformCrossover p1 p2 = go ([],[]) (zip (str p1) (str p2))
 
   where go :: MonadRandom m => (String, String) -> [(Char, Char)] -> m (Player, Player)
-        go (p3str, p4str)            [] = return (Player (reverse p3str) 0 0 0 1, Player (reverse p4str) 0 0 0 1)
+        go (p3str, p4str)            [] = return (Player (reverse p3str) 0 0 0 0 1, Player (reverse p4str) 0 0 0 0 1)
         go (p3str, p4str) ((c1, c2):xs) = do
             (v :: Double) <- getRandomR (0.0, 1.0)
             case v >= 0.5 of
