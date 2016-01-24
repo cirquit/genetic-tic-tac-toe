@@ -26,6 +26,12 @@ instance Show Board where
           showMV (Just v) = show v
           showMV _        = " "
 
+-- | Rotation definition
+--
+data Rotation = Rotation { mirrored :: Bool, cw :: Int }
+  deriving Show
+
+
 -- | Value definitions
 --
 data Value = O | X 

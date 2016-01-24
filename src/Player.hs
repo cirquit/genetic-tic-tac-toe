@@ -10,12 +10,13 @@ import Data.List        (foldl', genericLength, sortBy)
 import Data.Ord         (comparing)
 import Data.Function    (on)
 import Control.Monad.Random (MonadRandom(), getRandomR)
+import Data.Map as M (insert, Map(..), empty, lookup)
 --------------------------------------------------------------------
 
 --------------------------------------------------------------------
 
-import BoardTypes (Board(..), Move(..), Value(..), Result(..))
-import BoardLib   (playOn, emptyBoard, rotate, toMove, gameState, isValidOn)
+import BoardTypes (Board(..), Move(..), Value(..), Result(..), Rotation(..))
+import BoardUtils (playOn, emptyBoard, toMoveRot, gameState, isValidOn, hashBoard)
 --------------------------------------------------------------------
 
 --------------------------------------------------------------------
@@ -51,12 +52,17 @@ addGame :: Player -> Player
 addGame p = p { games = games p + 1 }
 
 
+{- DEPRECATED -}
 --------------------------------------------------------------------
 -- | select the move from the chromosome based on the index
 --
+{-
 getMove :: Player -> Int -> Move
 getMove (Player str _ _) i = toMove (str !! i)
+-}
 
+getMoveRot :: Player -> Int -> Rotation -> Move
+getMoveRot (Player str _ _) i rot = toMoveRot (str !! i) rot
 
 --------------------------------------------------------------------
 -- | calculates the next move for a single player based on the current board state
@@ -64,38 +70,32 @@ getMove (Player str _ _) i = toMove (str !! i)
 --   returns the validity of the move, the calculated move and the new current board state
 --
 
-nextMove :: Vector Board -> Player -> Board -> (Bool, Move, Board)
-nextMove v player board = (move `isValidOn` board, move, move `playOn` board)
+nextMove ::  Map Int (Int, Rotation) -> Player -> Board -> (Bool, Move, Board)
+nextMove hmap player board = (move `isValidOn` board, move, move `playOn` board)
   where 
-        move  = getMove player index
-        index = tryRotations (rotate board) v
+        move  = getMoveRot player i rot
 
-        tryRotations :: [Board] -> Vector Board -> Int
-        tryRotations []     v = error "No rotation was found"
-        tryRotations (b:bs) v =
-           case elemIndex b v of
-              (Just i) -> i -- trace ("Index: " ++ show (i + 1)) (i)
-              Nothing  -> tryRotations bs v
-
+        hashedBoard     = hashBoard board
+        (Just (i, rot)) = M.lookup hashedBoard hmap
 
 ---------------------------------------------------------------------
 -- | loop for two players to play a game
 --
 --   returns both players and the game result
 --
-play :: Vector Board -> Player -> Player -> Board -> (Player, Player, Result Value)
-play boardV p1 p2 board = 
-    case playGame boardV p1 p2 board of
+play ::  Map Int (Int, Rotation) -> Player -> Player -> Board -> (Player, Player, Result Value)
+play hmap p1 p2 board = 
+    case playGame hmap p1 p2 board of
         (p1', p2', (Win X)) -> (addGame p1', addGame p2', (Win X))
         (p1', p2', (Win O)) -> (addGame p1', addGame p2', (Win O))
         (p1', p2', Tie    ) -> (addGame p1', addGame p2',  Tie   )
 
-  where playGame :: Vector Board -> Player -> Player -> Board -> (Player, Player, Result Value)
-        playGame v p1 p2 b@Board{..} = 
-            case nextMove v p1 b of
+  where playGame ::  Map Int (Int, Rotation) -> Player -> Player -> Board -> (Player, Player, Result Value)
+        playGame hmap p1 p2 b@Board{..} = 
+            case nextMove hmap p1 b of
                 (True, _, b') ->
                     case gameState b' of
-                        Ongoing -> playGame v p2 (addTurn p1) b'
+                        Ongoing -> playGame hmap p2 (addTurn p1) b'
                         Tie     -> (addTurn p1, p2, Tie)
                         (Win X) -> (addTurn p1, p2, Win X)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
                         (Win O) -> (addTurn p2, p1, Win O)     -- 
@@ -109,6 +109,8 @@ play boardV p1 p2 board =
 --
 --   returns both players and the game result
 --
+--   TODO update the use with HashMap
+{-
 playIO :: Vector Board -> Player -> Player -> Board ->  IO (Player, Player, Result Value)
 playIO boardV p1 p2 board = playGame boardV p1 p2 board >>= \res -> 
     case res of
@@ -130,9 +132,13 @@ playIO boardV p1 p2 board = playGame boardV p1 p2 board >>= \res ->
                     case turn of
                         X -> putStrLn (show move ++ " is invalid") >> putStrLn (show p1 ++ " won!") >> return (p1, p2, Win O) -- to ensure that all p1 and p2 are the "starting" p1 and p2
                         O -> putStrLn (show move ++ " is invalid") >> putStrLn (show p1 ++ " won!") >> return (p2, p1, Win X) --
+-}
 
-
-
+---------------------------------------------------------------------
+-- | Lets the population play on every board possible
+-- 
+--   TODO: update for use with Vector AND HashMap
+{-
 populationPlay :: Vector Board -> [Player] -> [Player]
 populationPlay v      [] = []
 populationPlay v (p1:ps) = p1' : populationPlay v ps'
@@ -151,24 +157,28 @@ populationPlay v (p1:ps) = p1' : populationPlay v ps'
               where
                     (p1' , p2' , _) = play v p1  p2  (v ! n)
                     (p2'', p1'', _) = play v p2' p1' (v ! n)
+-}
 
-populationPlayEmptyBoard :: Vector Board -> [Player] -> [Player]
-populationPlayEmptyBoard v [] = []
-populationPlayEmptyBoard v (p1:ps) = p1' : populationPlayEmptyBoard v ps'
+---------------------------------------------------------------------
+-- | Lets the population play on an empty board
+--
+populationPlayEmptyBoard :: Map Int (Int, Rotation) -> [Player] -> [Player]
+populationPlayEmptyBoard m [] = []
+populationPlayEmptyBoard m (p1:ps) = p1' : populationPlayEmptyBoard m ps'
     where 
-          (p1', ps') = go v p1 ps []
+          (p1', ps') = go m p1 ps []
 
-          go :: Vector Board -> Player -> [Player] -> [Player] -> (Player, [Player])
-          go v p1     []  acc  = (p1, reverse acc)
-          go v p1 (p2:ps) acc  = go v p1' ps (p2':acc)
+          go :: Map Int (Int, Rotation) -> Player -> [Player] -> [Player] -> (Player, [Player])
+          go m p1     []  acc  = (p1, reverse acc)
+          go m p1 (p2:ps) acc  = go m p1' ps (p2':acc)
               where
-                   (p1', p2') = playEmptyBoard v p1 p2
+                   (p1', p2') = playEmptyBoard m p1 p2
 
-          playEmptyBoard :: Vector Board -> Player -> Player -> (Player, Player)
-          playEmptyBoard v p1 p2 = (p1'', p2'')
+          playEmptyBoard :: Map Int (Int, Rotation) -> Player -> Player -> (Player, Player)
+          playEmptyBoard m p1 p2 = (p1'', p2'')
               where
-                   (p1',  p2' , _) = play v p1  p2  emptyBoard
-                   (p2'', p1'', _) = play v p2' p1' emptyBoard
+                   (p1',  p2' , _) = play m p1  p2  emptyBoard
+                   (p2'', p1'', _) = play m p2' p1' emptyBoard
 {-
 populationPlayIO :: Vector Board -> [Player] -> IO [Player]
 populationPlayIO v      [] = return []

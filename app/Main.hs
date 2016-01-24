@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns, ViewPatterns #-}
+
 module Main where
 
 -----------------------------------------------------------------------------------
@@ -11,14 +12,13 @@ import System.Posix.Signals
 import System.Exit
 import Control.Concurrent
 import Control.Monad.Random
-
+import Data.Map as M (Map(..))
 -----------------------------------------------------------------------------------
 
 import Genetic  -- (genIndividual, genIndividuals)
 import Crossover
-import Player   -- (play,playIO)
-import BoardLib -- (createBoardPositions)
-import BoardCreator
+import Player      -- (play,playIO)
+import BoardUtils -- (createBoardPositions)
 import BoardTypes
 import SimpleLogger
 -----------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 100    -- populationsize
+popsize      = 1000    -- populationsize
 stringlength = 827     -- possible boardstates
 delta        = 0.1    -- chance to mutate
 beta         = 0.10    -- percent of the string to mutate
@@ -71,9 +71,7 @@ main :: IO ()
 main = do
 
 --  create board positions
-    vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
-
---    hashmap <- createHashMap
+    hashmap <- createHashMap "lib/sortedCombos827.txt"
     
 -- set up logger
     time   <- getTime
@@ -87,33 +85,111 @@ main = do
         population = flip evalRand g $ genIndividuals popsize stringlength
 
 -- start the evolution
-    evolution vec population generations g' logger
+    evolution hashmap population generations g' logger
 
 -------------------------------------------------------------------------
 -- | Automatic evolution dependent on 'generations'
 --
-evolution :: V.Vector Board -> [Player] -> Int -> StdGen -> Logger -> IO ()
-evolution vec population 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
-evolution vec population n g log = do
+evolution :: Map Int (Int, Rotation) -> [Player] -> Int -> StdGen -> Logger -> IO ()
+evolution hmap population 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
+evolution hmap population n g log = do
 
     log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
 
     let newpop = flip evalRand g $ do
-            let parents = populationPlayEmptyBoard vec population
+            let parents = populationPlayEmptyBoard hmap population
             children  <- rouletteCrossover uniformCrossover parents
             mutants   <- mutate delta beta children
-            let children' = populationPlayEmptyBoard vec children
+            let children' = populationPlayEmptyBoard hmap children
                 selected  = naturalselection tetha (parents ++ children')
             repopulate selected popsize stringlength
 
     let (g',_) = split g
     mapM_ (log <!>) (take 10 newpop)
     mapM_ ((log <!!>) . str) (take 10 newpop)
-    evolution vec newpop (n-1) g' log
+    evolution hmap newpop (n-1) g' log
+
+-----------------------------------------------------------------------------------
+-- ## Tests ##
+
+-- | Play vs a custom Chromosome for testing purposes
+--
+--   0 - You start
+--   1 - AI starts
+--
+
+playAI :: Map Int (Int, Rotation) -> Player -> Int -> IO ()
+playAI hmap player n = playAI' hmap emptyBoard player n
+  where
+      playAI' :: Map Int (Int, Rotation) -> Board -> Player -> Int -> IO ()
+      playAI' hmap board player n = do
+          print board
+          case (gameState board, n) of
+              (Ongoing, 0) -> do
+                         putStr "My move: "
+                         input <- getLine
+                         case input of
+                             "1" -> playAI' hmap (A1 `playOn` board) player 1
+                             "2" -> playAI' hmap (A2 `playOn` board) player 1
+                             "3" -> playAI' hmap (A3 `playOn` board) player 1
+                             "4" -> playAI' hmap (B1 `playOn` board) player 1
+                             "5" -> playAI' hmap (B2 `playOn` board) player 1
+                             "6" -> playAI' hmap (B3 `playOn` board) player 1
+                             "7" -> playAI' hmap (C1 `playOn` board) player 1
+                             "8" -> playAI' hmap (C2 `playOn` board) player 1
+                             "9" -> playAI' hmap (C3 `playOn` board) player 1
+                             _   -> putStrLn "Noob l2p" >> playAI' hmap board player 0
+              (Ongoing, 1) -> case nextMove hmap player board of
+                                   (False, move, _)      -> putStrLn ("Master wins, I tried to play " ++ show move)
+                                   (True , _   , board') -> playAI' hmap board' player 0
+              ((Win r), _) -> putStrLn (show r ++ " won!")
+              (Tie    , _) -> putStrLn "It's a tie"
+
+
+crossoverTest :: IO ()
+crossoverTest = do
+    let p1 = Player "AAAAAAAAAA" 1    3
+        p2 = Player "BBBBBBBBBB" 2    5
+        p3 = Player "CCCCCCCCCC" 3    7
+        p4 = Player "DDDDDDDDDD" 10  11
+        p5 = Player "EEEEEEEEEE" 2  127
+        p6 = Player "FFFFFFFFFF" 6   67
+        g  = mkStdGen 311
+
+        l = flip evalRand g $ rouletteCrossover onePointCrossover [p1,p2,p3,p4,p5,p6]
+    mapM_ print l
+
+naturalselectionTest :: IO ()
+naturalselectionTest = do
+    let p1 = Player "AAAAAAAAAA"  31   7   -- 4.428
+        p2 = Player "BBBBBBBBBB"  30   8   -- 3.75
+        p3 = Player "CCCCCCCCCC"  35   9   -- 3.88
+        p4 = Player "DDDDDDDDDD"  10  11   -- 0.9
+        p5 = Player "EEEEEEEEEE" 114  10   -- 11.4
+        p6 = Player "FFFFFFFFFF"  60  67   -- 0.89
+
+        popsize = 6
+        tetha = 0.7
+        stringlength = 10
+
+        l = naturalselection tetha [p1,p2,p3,p4,p5,p6]
+        g = mkStdGen 12345
+        l' = flip evalRand g $ repopulate l popsize stringlength
+    mapM_ print l'
+
+-- testPlay :: String -> Int -> IO ()
+-- testPlay s i = do
+--     let p = Player s 0 1
+--     vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
+--     playAI vec p i
+
+
 
 -----------------------------------------------------------------------------------
 -- | User input for communication
--- 
+--
+
+{- 
 customEvolution :: V.Vector Board -> [Player] -> StdGen -> Logger -> IO ()
 customEvolution vec population g log = do
     log <!!> "Another round? (y/n) or (p)rint "
@@ -133,6 +209,8 @@ customEvolution vec population g log = do
            customEvolution vec newpop g' log
         "p" -> mapM_ ((log <!>) . str) (take 10 population) >> customEvolution vec population g log
         _   -> mapM_ ( log <!>)        (take 10 population)
+-}
+
 
 {-
 safeExit :: [Player] -> V.Vector Board -> ThreadId -> IO ()
@@ -173,75 +251,3 @@ safeExit population vec tid = do
            loop population vec input
     loop population vec _      = putStrLn "Sorry, something didn't work...try again" >> putStr "Command: " >> getLine >>= \input -> loop population vec input
 -}
------------------------------------------------------------------------------------
--- ## Tests ##
-
--- | Play vs a custom Chromosome for testing purposes
---
---   0 - You start
---   1 - AI starts
---
-playAI :: V.Vector Board -> Player -> Int -> IO ()
-playAI vec player n = playAI' vec emptyBoard player n
-  where
-      playAI' :: V.Vector Board -> Board -> Player -> Int -> IO ()
-      playAI' vec board player n = do
-          print board
-          case (gameState board, n) of
-              (Ongoing, 0) -> do
-                         putStr "My move: "
-                         input <- getLine
-                         case input of
-                             "1" -> playAI' vec (A1 `playOn` board) player 1
-                             "2" -> playAI' vec (A2 `playOn` board) player 1
-                             "3" -> playAI' vec (A3 `playOn` board) player 1
-                             "4" -> playAI' vec (B1 `playOn` board) player 1
-                             "5" -> playAI' vec (B2 `playOn` board) player 1
-                             "6" -> playAI' vec (B3 `playOn` board) player 1
-                             "7" -> playAI' vec (C1 `playOn` board) player 1
-                             "8" -> playAI' vec (C2 `playOn` board) player 1
-                             "9" -> playAI' vec (C3 `playOn` board) player 1
-                             _   -> putStrLn "Noob l2p" >> playAI' vec board player 0
-              (Ongoing, 1) -> case nextMove vec player board of
-                                   (False, move, _)      -> putStrLn ("Master wins, I tried to play " ++ show move)
-                                   (True , _   , board') -> playAI' vec board' player 0
-              ((Win r), _) -> putStrLn (show r ++ " won!")
-              (Tie    , _) -> putStrLn "It's a tie"
-
-
-crossoverTest :: IO ()
-crossoverTest = do
-    let p1 = Player "AAAAAAAAAA" 1    3
-        p2 = Player "BBBBBBBBBB" 2    5
-        p3 = Player "CCCCCCCCCC" 3    7
-        p4 = Player "DDDDDDDDDD" 10  11
-        p5 = Player "EEEEEEEEEE" 2  127
-        p6 = Player "FFFFFFFFFF" 6   67
-        g  = mkStdGen 311
-
-        l = flip evalRand g $ rouletteCrossover onePointCrossover [p1,p2,p3,p4,p5,p6]
-    mapM_ print l
-
-naturalselectionTest :: IO ()
-naturalselectionTest = do
-    let p1 = Player "AAAAAAAAAA"  31   7   -- 4.428
-        p2 = Player "BBBBBBBBBB"  30   8   -- 3.75
-        p3 = Player "CCCCCCCCCC"  35   9   -- 3.88
-        p4 = Player "DDDDDDDDDD"  10  11   -- 0.9
-        p5 = Player "EEEEEEEEEE" 114  10   -- 11.4
-        p6 = Player "FFFFFFFFFF"  60  67   -- 0.89
-
-        popsize = 6
-        tetha = 0.7
-        stringlength = 10
-
-        l = naturalselection tetha [p1,p2,p3,p4,p5,p6]
-        g = mkStdGen 12345
-        l' = flip evalRand g $ repopulate l popsize stringlength
-    mapM_ print l'
-
-testPlay :: String -> Int -> IO ()
-testPlay s i = do
-    let p = Player s 0 1
-    vec <- createBoardStatesFrom "lib/tictactoeCombos827.txt"
-    playAI vec p i
