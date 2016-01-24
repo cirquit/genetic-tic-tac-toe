@@ -23,17 +23,21 @@ import Board.Utils (playOn, emptyBoard, toMoveRot, gameState, isValidOn, hashBoa
 -- | Player definition & instances
 --
 -- 
-data Player = Player { str        :: String  -- moves encoded as Chars for every possible boardstate
-                     , turnsLived :: Int     -- turns lived
-                     , games      :: Int }   -- amount of games played
+data Player = Player { str         :: String     -- moves encoded as Chars for every possible boardstate
+                     , turnsLived  :: Int        -- turns lived
+                     , wins        :: Int        -- total wins
+                     , ties        :: Int        -- total ties
+                     , games       :: Int }      -- amount of games played
   deriving Eq
 
 
 instance Show Player where
-    show (Player str turnsLived games) = 
-        unwords [ "# Player"               , take 20 str
-                , "# Avg turns lived in %:", percent
-                , "# Games:"               , show games
+    show (Player str turnsLived wins ties games) = 
+        unwords [ "# Player"           , take 20 str
+                , "# Avg turns lived:" , percent
+                , "# Wins:"            , show wins
+                , "# Ties:"            , show ties
+                , "# Games:"           , show games
                 ]
       where percent = take 6 $ show ((fromIntegral turnsLived) / (fromIntegral games))
 --------------------------------------------------------------------
@@ -51,6 +55,18 @@ addTurn p = p { turnsLived = turnsLived p + 1 }
 addGame :: Player -> Player
 addGame p = p { games = games p + 1 }
 
+--------------------------------------------------------------------
+-- | shortcut to increment tie count
+--
+addTie :: Player -> Player
+addTie p = p { ties = ties p + 1 }
+
+--------------------------------------------------------------------
+-- | shortcut to increment win count
+--
+addWin :: Player -> Player
+addWin p = p { wins = wins p + 1 }
+
 
 {- DEPRECATED -}
 --------------------------------------------------------------------
@@ -62,7 +78,7 @@ getMove (Player str _ _) i = toMove (str !! i)
 -}
 
 getMoveRot :: Player -> Int -> Rotation -> Move
-getMoveRot (Player str _ _) i rot = toMoveRot (str !! i) rot
+getMoveRot (Player str _ _ _ _) i rot = toMoveRot (str !! i) rot
 
 --------------------------------------------------------------------
 -- | calculates the next move for a single player based on the current board state
@@ -96,13 +112,13 @@ play hmap p1 p2 board =
                 (True, _, b') ->
                     case gameState b' of
                         Ongoing -> playGame hmap p2 (addTurn p1) b'
-                        Tie     -> (addTurn p1, p2, Tie)
-                        (Win X) -> (addTurn p1, p2, Win X)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
-                        (Win O) -> (addTurn p2, p1, Win O)     -- 
+                        Tie     -> ((addTie . addTurn) p1, addTie p2, Tie)
+                        (Win X) -> ((addWin . addTurn) p1, p2, Win X)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        (Win O) -> ((addWin . addTurn) p2, p1, Win O)     -- 
                 (False, _, b')  -> 
                     case turn of
-                        X -> (p1, p2, Win O)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
-                        O -> (p2, p1, Win X)     -- 
+                        X -> (p1,        addTie p2, Win O)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        O -> (addTie p2,        p1, Win X)     -- 
 
 ---------------------------------------------------------------------
 -- | loop for two players to play a game with IO
@@ -203,23 +219,32 @@ populationPlayIO v (p1:ps) = do
 
 
 sortByAscRatio :: [Player] -> [Player]
-sortByAscRatio = sortBy (comparing turnsRatio)
+sortByAscRatio = sortBy (comparing fitnessRatio)
 
 sortByDscRatio :: [Player] -> [Player]
-sortByDscRatio = sortBy (flip (comparing turnsRatio))
+sortByDscRatio = sortBy (flip (comparing fitnessRatio))
 
 
-turnsRatio :: Player -> Double
-turnsRatio x = toD (turnsLived x) / toD (games x)
-    where toD = fromIntegral
+fitnessRatio :: Player -> Double
+fitnessRatio x = winRatio * turnsRatio
+    where 
+
+          winRatio   = (toD (wins x) +  0.5 * toD (ties x)) / gamesD  -- [0..1] (bounds)
+
+          turnsRatio = toD (turnsLived x)  / gamesD                   -- [0..4,5]         (bounds)
+
+          gamesD = toD (games x)
+
+          toD = fromIntegral
+
 
 
 sumRatios :: [Player] -> Double
-sumRatios = foldl (\acc x -> acc + turnsRatio x) 0.0
+sumRatios = foldl (\acc x -> acc + fitnessRatio x) 0.0
 
 
 ascendingPieChart :: [Player] -> [(Player, Double)]
-ascendingPieChart players = foldl (\acc x -> (x, turnsRatio x / sumR) : acc) [] descPlayers
+ascendingPieChart players = foldl (\acc x -> (x, fitnessRatio x / sumR) : acc) [] descPlayers
     where sumR        = sumRatios players
           descPlayers = sortByDscRatio players
 

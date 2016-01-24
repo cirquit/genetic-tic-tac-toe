@@ -57,12 +57,12 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 1593    -- populationsize
+popsize      = 1000    -- populationsize
 stringlength = 827     -- possible boardstates
 delta        = 0.1    -- chance to mutate
 beta         = 0.10    -- percent of the string to mutate
 tetha        = 0.7     -- percent to be removed by natural selection
-generations  = 593
+generations  = 500
 
 -------------------------------------------------------------------------
 -- | Main entry point
@@ -148,12 +148,12 @@ playAI hmap player n = playAI' hmap emptyBoard player n
 
 crossoverTest :: IO ()
 crossoverTest = do
-    let p1 = Player "AAAAAAAAAA" 1    3
-        p2 = Player "BBBBBBBBBB" 2    5
-        p3 = Player "CCCCCCCCCC" 3    7
-        p4 = Player "DDDDDDDDDD" 10  11
-        p5 = Player "EEEEEEEEEE" 2  127
-        p6 = Player "FFFFFFFFFF" 6   67
+    let p1 = Player "AAAAAAAAAA" 1  0 0   3
+        p2 = Player "BBBBBBBBBB" 2  0 0   5
+        p3 = Player "CCCCCCCCCC" 3  0 0   7
+        p4 = Player "DDDDDDDDDD" 10 0 0  11
+        p5 = Player "EEEEEEEEEE" 2  0 0 127
+        p6 = Player "FFFFFFFFFF" 6  0 0  67
         g  = mkStdGen 311
 
         l = flip evalRand g $ rouletteCrossover onePointCrossover [p1,p2,p3,p4,p5,p6]
@@ -161,12 +161,12 @@ crossoverTest = do
 
 naturalselectionTest :: IO ()
 naturalselectionTest = do
-    let p1 = Player "AAAAAAAAAA"  31   7   -- 4.428
-        p2 = Player "BBBBBBBBBB"  30   8   -- 3.75
-        p3 = Player "CCCCCCCCCC"  35   9   -- 3.88
-        p4 = Player "DDDDDDDDDD"  10  11   -- 0.9
-        p5 = Player "EEEEEEEEEE" 114  10   -- 11.4
-        p6 = Player "FFFFFFFFFF"  60  67   -- 0.89
+    let p1 = Player "AAAAAAAAAA"  31  0 0  7   -- 4.428
+        p2 = Player "BBBBBBBBBB"  30  0 0  8   -- 3.75
+        p3 = Player "CCCCCCCCCC"  35  0 0  9   -- 3.88
+        p4 = Player "DDDDDDDDDD"  10  0 0 11   -- 0.9
+        p5 = Player "EEEEEEEEEE" 114  0 0 10   -- 11.4
+        p6 = Player "FFFFFFFFFF"  60  0 0 67   -- 0.89
 
         popsize = 6
         tetha = 0.7
