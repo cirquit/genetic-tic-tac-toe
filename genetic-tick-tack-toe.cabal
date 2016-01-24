@@ -15,9 +15,9 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     BoardTypes
-                     , BoardUtils
-                     , BoardCreator
+  exposed-modules:     Board.Types
+                     , Board.Utils
+                     , Board.Creator
                      , Genetic
                      , Crossover
                      , Player

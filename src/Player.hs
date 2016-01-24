@@ -15,8 +15,8 @@ import Data.Map as M (insert, Map(..), empty, lookup)
 
 --------------------------------------------------------------------
 
-import BoardTypes (Board(..), Move(..), Value(..), Result(..), Rotation(..))
-import BoardUtils (playOn, emptyBoard, toMoveRot, gameState, isValidOn, hashBoard)
+import Board.Types (Board(..), Move(..), Value(..), Result(..), Rotation(..))
+import Board.Utils (playOn, emptyBoard, toMoveRot, gameState, isValidOn, hashBoard)
 --------------------------------------------------------------------
 
 --------------------------------------------------------------------

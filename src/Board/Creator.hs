@@ -1,13 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module BoardCreator where
+module Board.Creator where
 
 import Data.Hashable
 import Data.List
 import Data.Map as M (insert, Map(..), empty)
 
-import BoardUtils
-import BoardTypes
+import Board.Utils
+import Board.Types
 
 createMinHashed :: [(Board, Rotation)] -> String
 createMinHashed bs = encodeBoard . snd $ minHash

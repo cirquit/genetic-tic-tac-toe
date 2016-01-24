@@ -18,8 +18,8 @@ import Data.Map as M (Map(..))
 import Genetic  -- (genIndividual, genIndividuals)
 import Crossover
 import Player      -- (play,playIO)
-import BoardUtils -- (createBoardPositions)
-import BoardTypes
+import Board.Utils -- (createBoardPositions)
+import Board.Types
 import SimpleLogger
 -----------------------------------------------------------------------------------
 

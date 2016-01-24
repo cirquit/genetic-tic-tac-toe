@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns #-}
 
-module BoardTypes where
+module Board.Types where
 
 -- | Board defintions
 --

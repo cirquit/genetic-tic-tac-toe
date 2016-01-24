@@ -9,7 +9,7 @@ import System.Random
 import Control.Monad.Random (MonadRandom(), getRandomR, getRandomRs)
 
 import Player     (Player(..), sortByDscRatio)
-import BoardTypes (Board(..), Move(..), Value(..), Result(..))
+import Board.Types (Board(..), Move(..), Value(..), Result(..))
 import Crossover
 
 -- |                         Chromosome length

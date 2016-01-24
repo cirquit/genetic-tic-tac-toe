@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns #-}
 
-module BoardUtils where
+module Board.Utils where
 
 import Data.List (foldl')
 import Data.Vector (Vector(..), fromList)
@@ -8,7 +8,7 @@ import Data.Hashable (hash)
 import Data.Map as M (insert, Map(..), empty)
 
 
-import BoardTypes (Board(..), Move(..), Value(..), Result(..), Rotation(..))
+import Board.Types (Board(..), Move(..), Value(..), Result(..), Rotation(..))
 
 ---------------------------------------------------------------------
 -- | does not check if the move is valid
