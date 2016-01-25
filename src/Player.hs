@@ -11,12 +11,15 @@ import Data.Ord         (comparing)
 import Data.Function    (on)
 import Control.Monad.Random (MonadRandom(), getRandomR)
 import Data.Map as M (insert, Map(..), empty, lookup)
+
+import Debug.Trace
+
 --------------------------------------------------------------------
 
 --------------------------------------------------------------------
 
 import Board.Types (Board(..), Move(..), Value(..), Result(..), Rotation(..))
-import Board.Utils (playOn, emptyBoard, toMoveRot, gameState, isValidOn, hashBoard)
+import Board.Utils -- (playOn, emptyBoard, toMoveRot, gameState, isValidOn, hashBoard)
 --------------------------------------------------------------------
 
 --------------------------------------------------------------------
@@ -104,6 +107,43 @@ nextMove hmap player board = (move `isValidOn` board, move, move `playOn` board)
 
         hashedBoard     = hashBoard board
         (Just (i, rot)) = M.lookup hashedBoard hmap
+
+---------------------------------------------------------------------
+-- | one player plays all permutations from emptyboard using a stack-queue
+--
+--
+playSingle :: Map Int (Int, Rotation) -> Map Int [Board] -> Player -> Player
+playSingle rotMap nextMMap p = p''
+    where 
+
+        (Just round1Boards) = M.lookup (hashBoard emptyBoard) nextMMap
+
+        p'  = go [emptyBoard] rotMap nextMMap p
+        p'' = go round1Boards rotMap nextMMap p'
+
+        go :: [Board] -> Map Int (Int, Rotation) -> Map Int [Board] -> Player -> Player
+        go []     rotMap nextMMap p = p
+        go (x:xs) rotMap nextMMap p =
+            case playGame p x of
+                Left p'       -> go xs rotMap nextMMap (addGame p')
+                Right (p', b) -> let (Just nextBs) = M.lookup (hashBoard b) nextMMap
+                                 in go (nextBs ++ xs) rotMap nextMMap p'
+            where 
+
+                playGame :: Player -> Board -> Either Player (Player, Board)
+                playGame p board
+                  | Tie     <- gameState board = Left (addTie  p)
+                  | (Win _) <- gameState board = Left (addLoss p)
+                  | Ongoing <- gameState board =
+                      case nextMove rotMap p board of
+                          (True, _, b) -> 
+                              case gameState b of
+                                  Ongoing     -> Right (p, b)
+                                  (Win _)     -> Left (addWin p)
+                                  Tie         -> Left (addTie p)
+                          (False, _, _) -> Left (addLoss p)
+
+
 
 ---------------------------------------------------------------------
 -- | loop for two players to play a game
@@ -234,10 +274,10 @@ sortByDscRatio = sortBy (flip (comparing fitnessRatio))
 
 
 fitnessRatio :: Player -> Double
-fitnessRatio p = winRatio -- * turnsRatio
+fitnessRatio p =  (gamesD - toD (losses p)) / gamesD -- winRatio -- * turnsRatio
     where
 
-          winRatio = toD (3 * wins p + 2 * ties p + losses p) / gamesD
+       --   winRatio = toD (3 * wins p + 2 * ties p + losses p) / gamesD
 
           -- winRatio   = (toD (wins x) +  0.5 * toD (ties x)) / gamesD  -- [0..1] (bounds)
 
