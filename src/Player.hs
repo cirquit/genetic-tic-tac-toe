@@ -111,7 +111,7 @@ nextMove hmap player board = (move `isValidOn` board, move, move `playOn` board)
 ---------------------------------------------------------------------
 -- | one player plays all permutations from emptyboard using a stack-queue
 --
---
+--   
 playSingle :: Map Int (Int, Rotation) -> Map Int [Board] -> Player -> Player
 playSingle rotMap nextMMap p = p''
     where 
@@ -132,18 +132,31 @@ playSingle rotMap nextMMap p = p''
 
                 playGame :: Player -> Board -> Either Player (Player, Board)
                 playGame p board
-                  | Tie     <- gameState board = Left (addTie  p)
-                  | (Win _) <- gameState board = Left (addLoss p)
+                  | Tie     <- gameState board = Left (addFutureLosses board . addTie  $ p)
+                  | (Win _) <- gameState board = Left (addFutureLosses board . addLoss $ p)
                   | Ongoing <- gameState board =
                       case nextMove rotMap p board of
-                          (True, _, b) -> 
-                              case gameState b of
-                                  Ongoing     -> Right (p, b)
-                                  (Win _)     -> Left (addWin p)
-                                  Tie         -> Left (addTie p)
-                          (False, _, _) -> Left (addLoss p)
+                          (True, _, board') -> 
+                              case gameState board' of
+                                  Ongoing     -> Right (p, board')
+                                  (Win _)     -> Left (addFutureLosses board' . addWin $ p)
+                                  Tie         -> Left (addFutureLosses board' . addTie $ p)
+                          (False, _, _) -> Left (addFutureLosses board . addLoss $ p)
 
 
+                addFutureLosses :: Board -> Player -> Player
+                addFutureLosses b p = p { losses = futureLosses + losses p, games = futureLosses + games p }
+                    where
+
+                          emptyFields = foldl' countEmpty 0 (encodeBoard b)  -- XOOO___OXX
+
+                          countEmpty xs '_' = 1 + xs
+                          countEmpty xs _   = xs
+
+                          futureLosses = go emptyFields 1
+                              where go n m
+                                       | 2 < (n - m) = (n - m) * (go n (m + 2))
+                                       | otherwise   = 2
 
 ---------------------------------------------------------------------
 -- | loop for two players to play a game

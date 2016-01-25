@@ -60,7 +60,7 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 5000    -- populationsize
+popsize      = 500     -- populationsize
 stringlength = 827     -- possible boardstates
 delta        = 0.10    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
@@ -88,37 +88,49 @@ main = do
 
 -- create initial population
     let g      = mkStdGen 134573983648723746
-        (g',_) = split g
-        population = flip evalRand g $ genIndividuals popsize stringlength
+        -- (g',_) = split g
+        -- population = flip evalRand g $ genIndividuals popsize stringlength
 
 -- start the evolution
-    evolution rotMap nextMMap population generations g' logger
+    evolution rotMap nextMMap [] generations g logger
 
 -------------------------------------------------------------------------
 -- | Automatic evolution dependent on 'generations'
 --
 evolution :: Map Int (Int, Rotation) -> Map Int [Board] -> [Player] -> Int -> StdGen -> Logger -> IO ()
-evolution rotMap nextMMap population 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
-evolution rotMap nextMMap population n g log = do
+evolution rotMap nextMMap accPop 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
+evolution rotMap nextMMap accPop n g log = do
 
     log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
 
     let strategy = parList rseq
-        newpop = flip evalRand g $ do
+        newAccPop = flip evalRand g $ do
             -- let parents = populationPlay vec hmap population `using` strategy
-            let parents = map (playSingle rotMap nextMMap) population `using` strategy
+            let curPop = genIndividuals popsize stringlength
+
+                curPopParents = map (playSingle rotMap nextMMap) curPop `using` strategy
+
+                parents = curPopParents ++ accPop
 
             children  <- rouletteCrossover uniformCrossover parents
             mutants   <- mutate delta beta children
+
             -- let children' = populationPlay vec hmap children `using` strategy
+
             let children' = map (playSingle rotMap nextMMap) children `using` strategy
+
                 selected  = naturalselection tetha (parents ++ children')
-            repopulate selected popsize stringlength
+
+            return selected
+
+--            repopulate selected popsize stringlength
 
     let (g',_) = split g
-    mapM_ (log <!>) (take 10 newpop)
-    mapM_ ((log <!!>) . str) (take 10 newpop)
-    evolution rotMap nextMMap newpop (n-1) g' log
+
+    mapM_ (log <!>) (take 10 newAccPop)
+    mapM_ ((log <!!>) . str) (take 10 newAccPop)
+    
+    evolution rotMap nextMMap newAccPop (n-1) g' log
 
 -----------------------------------------------------------------------------------
 -- ## Tests ##
