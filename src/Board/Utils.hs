@@ -203,12 +203,12 @@ createBoardStatesFrom fp = readFile fp >>= (return . toBoardList)
 --   * The value is the index in the chromosome and the rotation to the "base case"
 --
 --
---                             Hashed Board  Index for the Chromosome     Rotation for the current board
---                             \__________/   /                              /
---                                    |      /         _____________________/
---                                    |     /         /
-createHashMap :: FilePath -> IO (Map Int (Int, Rotation))
-createHashMap fp = do
+--                                Hashed Board  Index for the Chromosome     Rotation for the current board
+--                                \__________/   /                              /
+--                                       |      /         _____________________/
+--                                       |     /         /
+createRotHashMap :: FilePath -> IO (Map Int (Int, Rotation))
+createRotHashMap fp = do
 
         l <- createBoardStatesFrom fp
 
@@ -269,3 +269,53 @@ encodeBoard Board{..} = boardString
         showTurn (Just X) = 'X'
         showTurn (Just O) = 'O'
         showTurn Nothing  = '_'
+
+
+---------------------------------------------------------------------
+-- | creates a map for every possible gamestate its next possible moves
+--
+--  the key is hashed for faster searches
+
+createNextBoardStateMap :: FilePath -> IO (Map Int [Board])
+createNextBoardStateMap fp = do
+
+        l <- createBoardStatesFrom fp
+        let boardRots = map (map fst . createRotations) l
+
+        return $ go boardRots M.empty
+
+    where
+
+        go :: [[Board]] -> Map Int [Board] -> Map Int [Board]
+        go []     m = m
+        go (b:bs) m = go bs m'
+            where
+                bstates = map (\x -> (hashBoard x, nextStates x)) b
+                m' = foldl' (\xs (hb, states) -> insert hb states xs) m bstates
+
+
+        nextStates :: Board -> [Board]
+        nextStates b@Board{..} = hashedStates 
+            where
+                hashedStates = go boardString []
+
+                boardString = zip [1..] (encodeBoard b)
+
+                go :: [(Int, Char)] -> [Board] -> [Board]
+                go []            acc = acc
+                go ((n, '_'):xs) acc = go xs (setField n : acc)
+                go ((n,  _ ):xs) acc = go xs acc
+
+                setField :: Int -> Board
+                setField 1 = b {  a1 = Just turn, turn = succ turn  }
+                setField 2 = b {  a2 = Just turn, turn = succ turn  }
+                setField 3 = b {  a3 = Just turn, turn = succ turn  }
+                setField 4 = b {  b1 = Just turn, turn = succ turn  }
+                setField 5 = b {  b2 = Just turn, turn = succ turn  }
+                setField 6 = b {  b3 = Just turn, turn = succ turn  }
+                setField 7 = b {  c1 = Just turn, turn = succ turn  }
+                setField 8 = b {  c2 = Just turn, turn = succ turn  }
+                setField 9 = b {  c3 = Just turn, turn = succ turn  }
+
+
+

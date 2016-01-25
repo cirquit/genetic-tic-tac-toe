@@ -60,10 +60,10 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 100    -- populationsize
+popsize      = 500     -- populationsize
 stringlength = 827     -- possible boardstates
-delta        = 0.1    -- chance to mutate
-beta         = 0.10    -- percent of the string to mutate
+delta        = 0.10    -- chance to mutate
+beta         = 0.05    -- percent of the string to mutate
 tetha        = 0.7     -- percent to be removed by natural selection
 generations  = 500
 
@@ -74,46 +74,63 @@ main :: IO ()
 main = do
 
 --  create board positions
-    hashmap <- createHashMap "lib/sortedCombos827.txt"
+    rotMap <- createRotHashMap "lib/sortedCombos827.txt"
     
-    vec <- V.fromList <$> createBoardStatesFrom "lib/sortedCombos827.txt"
+    nextMMap <- createNextBoardStateMap "lib/sortedCombos827.txt"
+
+    -- vec <- V.fromList <$> createBoardStatesFrom "lib/sortedCombos827.txt"
 
 -- set up logger
     time   <- getTime
     fLog   <- createFileLog ("log/" ++ time ++ "/") ""
     stdLog <- createStdoutLog
     let logger = mergeLogs [fLog, stdLog]
-    
+
 -- create initial population
-    let g      = mkStdGen 134573981648723746
-        (g',_) = split g
-        population = flip evalRand g $ genIndividuals popsize stringlength
+    let g      = mkStdGen 134573983648723746
+        -- (g',_) = split g
+        -- population = flip evalRand g $ genIndividuals popsize stringlength
 
 -- start the evolution
-    evolution hashmap vec population generations g' logger
+    evolution rotMap nextMMap [] generations g logger
 
 -------------------------------------------------------------------------
 -- | Automatic evolution dependent on 'generations'
 --
-evolution :: Map Int (Int, Rotation) -> Vector Board -> [Player] -> Int -> StdGen -> Logger -> IO ()
-evolution hmap vec population 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
-evolution hmap vec population n g log = do
+evolution :: Map Int (Int, Rotation) -> Map Int [Board] -> [Player] -> Int -> StdGen -> Logger -> IO ()
+evolution rotMap nextMMap accPop 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
+evolution rotMap nextMMap accPop n g log = do
 
     log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
 
     let strategy = parList rseq
-        newpop = flip evalRand g $ do
-            let parents = populationPlay vec hmap population `using` strategy
+        newAccPop = flip evalRand g $ do
+            -- let parents = populationPlay vec hmap population `using` strategy
+            let curPop = genIndividuals popsize stringlength
+
+                curPopParents = map (playSingle rotMap nextMMap) curPop `using` strategy
+
+                parents = curPopParents ++ accPop
+
             children  <- rouletteCrossover uniformCrossover parents
             mutants   <- mutate delta beta children
-            let children' = populationPlay vec hmap children `using` strategy
+
+            -- let children' = populationPlay vec hmap children `using` strategy
+
+            let children' = map (playSingle rotMap nextMMap) children `using` strategy
+
                 selected  = naturalselection tetha (parents ++ children')
-            repopulate selected popsize stringlength
+
+            return selected
+
+--            repopulate selected popsize stringlength
 
     let (g',_) = split g
-    mapM_ (log <!>) (take 10 newpop)
-    mapM_ ((log <!!>) . str) (take 10 newpop)
-    evolution hmap vec newpop (n-1) g' log
+
+    mapM_ (log <!>) (take 10 newAccPop)
+    mapM_ ((log <!!>) . str) (take 10 newAccPop)
+    
+    evolution rotMap nextMMap newAccPop (n-1) g' log
 
 -----------------------------------------------------------------------------------
 -- ## Tests ##
@@ -182,6 +199,17 @@ naturalselectionTest = do
         g = mkStdGen 12345
         l' = flip evalRand g $ repopulate l popsize stringlength
     mapM_ print l'
+
+singlePlayerTest :: IO Player
+singlePlayerTest = do
+    rotMap <- createRotHashMap "lib/sortedCombos827.txt"
+    
+    nextMMap <- createNextBoardStateMap "lib/sortedCombos827.txt"
+    let g = mkStdGen 123123123
+        p1 = flip evalRand g $ genIndividual 827
+
+    return $ playSingle rotMap nextMMap p1
+
 
 -- testPlay :: String -> Int -> IO ()
 -- testPlay s i = do
