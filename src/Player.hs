@@ -11,6 +11,7 @@ import Data.Ord         (comparing)
 import Data.Function    (on)
 import Control.Monad.Random (MonadRandom(), getRandomR)
 import Data.Map as M (insert, Map(..), empty, lookup)
+import Data.Word (Word8(..))
 
 import Debug.Trace
 
@@ -26,7 +27,7 @@ import Board.Utils -- (playOn, emptyBoard, toMoveRot, gameState, isValidOn, hash
 -- | Player definition & instances
 --
 -- 
-data Player = Player { str         :: String     -- moves encoded as Chars for every possible boardstate
+data Player = Player { moves       :: [Word8]     -- moves encoded as Chars for every possible boardstate
                      , turnsLived  :: Int        -- turns lived
                      , wins        :: Int        -- total wins
                      , ties        :: Int        -- total ties
@@ -36,18 +37,30 @@ data Player = Player { str         :: String     -- moves encoded as Chars for e
 
 
 instance Show Player where
-    show p@(Player str turnsLived wins ties losses games) = 
-        unwords [ "# Player"           , take 20 str
+    show p@(Player moves turnsLived wins ties losses games) = 
+        unwords [ "# Player"           , show $ take 10 moves
               --  , "# Avg turns lived:" , percent
                 , "# Wins:"            , show wins
                 , "# Ties:"            , show ties
-                , "# Losses:"          , show losses
-                , "# Fitness:"         , show (fitnessRatio p)
+                , "# Los:"             , show losses
+                , "# Fits:"            , show (fitnessRatio p)
                 , "# Games:"           , show games
                 ]
       where percent = take 6 $ show ((fromIntegral turnsLived) / (fromIntegral games))
 --------------------------------------------------------------------
 
+--------------------------------------------------------------------
+-- | shortcut to increment turnsLived count
+--
+newPlayer :: [Word8] -> Player
+newPlayer moves = Player moves 0 0 0 0 1
+
+
+newSPlayer :: String -> Player
+newSPlayer moves = Player (map readW8 moves) 0 0 0 0 1
+    where
+        readW8 :: Char -> Word8
+        readW8 = read . (:[])
 
 --------------------------------------------------------------------
 -- | shortcut to increment turnsLived count
@@ -92,7 +105,7 @@ getMove (Player str _ _) i = toMove (str !! i)
 -}
 
 getMoveRot :: Player -> Int -> Rotation -> Move
-getMoveRot (Player str _ _ _ _ _) i rot = toMoveRot (str !! i) rot
+getMoveRot (Player moves _ _ _ _ _) i rot = toMoveRot (moves !! i) rot
 
 --------------------------------------------------------------------
 -- | calculates the next move for a single player based on the current board state
@@ -127,21 +140,22 @@ playSingle rotMap nextMMap p = p''
             case playGame p x of
                 Left p'       -> go xs rotMap nextMMap (addGame p')
                 Right (p', b) -> let (Just nextBs) = M.lookup (hashBoard b) nextMMap
-                                 in go (nextBs ++ xs) rotMap nextMMap p'
+                                     !futureBoards  = nextBs ++ xs
+                                 in go futureBoards rotMap nextMMap p'
             where 
 
                 playGame :: Player -> Board -> Either Player (Player, Board)
                 playGame p board
-                  | Tie     <- gameState board = Left (addFutureLosses board . addTie  $ p)
-                  | (Win _) <- gameState board = Left (addFutureLosses board . addLoss $ p)
+                  | Tie     <- gameState board = Left (addTie  $ p)-- Left (addFutureLosses board . addTie  $ p)
+                  | (Win _) <- gameState board = Left (addLoss $ p)-- Left (addFutureLosses board . addLoss $ p)
                   | Ongoing <- gameState board =
                       case nextMove rotMap p board of
                           (True, _, board') -> 
                               case gameState board' of
                                   Ongoing     -> Right (p, board')
-                                  (Win _)     -> Left (addFutureLosses board' . addWin $ p)
-                                  Tie         -> Left (addFutureLosses board' . addTie $ p)
-                          (False, _, _) -> Left (addFutureLosses board . addLoss $ p)
+                                  (Win _)     -> Left (addWin $ p)-- Left (addFutureLosses board' . addWin $ p)
+                                  Tie         -> Left (addTie $ p)-- Left (addFutureLosses board' . addTie $ p)
+                          (False, _, _) -> Left (addLoss $ p) -- Left (addFutureLosses board . addLoss $ p)
 
 
                 addFutureLosses :: Board -> Player -> Player
@@ -287,9 +301,9 @@ sortByDscRatio = sortBy (flip (comparing fitnessRatio))
 
 
 fitnessRatio :: Player -> Double
-fitnessRatio p =  (gamesD - toD (losses p)) / gamesD -- winRatio -- * turnsRatio
+fitnessRatio p = toD (3 * wins p + 2 * ties p + losses p) / gamesD
     where
-
+          -- (gamesD - toD (losses p)) / gamesD -- winRatio -- * turnsRatio
        --   winRatio = toD (3 * wins p + 2 * ties p + losses p) / gamesD
 
           -- winRatio   = (toD (wins x) +  0.5 * toD (ties x)) / gamesD  -- [0..1] (bounds)
@@ -334,7 +348,7 @@ getUniquePlayers l = getRandomR (0.0, 1.0) >>= findPartner l . getPlayer l
 -- | returns the amount of chars which are not the same 
 --   if the Chromosomelength is not the same, the rest will be ignored
 --
-comparePlayers :: String -> String -> Int
+comparePlayers :: [Word8] -> [Word8] -> Int
 comparePlayers (x:xs) (y:ys)
   | x == y    = comparePlayers xs ys
   | otherwise = 1 +  comparePlayers xs ys

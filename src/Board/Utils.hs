@@ -6,6 +6,7 @@ import Data.List (foldl')
 import Data.Vector (Vector(..), fromList)
 import Data.Hashable (hash)
 import Data.Map as M (insert, Map(..), empty)
+import Data.Word (Word8(..))
 
 
 import Board.Types (Board(..), Move(..), Value(..), Result(..), Rotation(..))
@@ -113,17 +114,17 @@ toMove  x  = error ("BoardLib.toMove: could not find the move: <" ++ x:">")
 ---------------------------------------------------------------------
 -- | Encoding for moves with rotation
 --
-toMoveRot :: Char -> Rotation -> Move
-toMoveRot 'A' rot = applyRot A1 rot
-toMoveRot 'B' rot = applyRot A2 rot
-toMoveRot 'C' rot = applyRot A3 rot
-toMoveRot 'D' rot = applyRot B1 rot
-toMoveRot 'E' rot = applyRot B2 rot
-toMoveRot 'F' rot = applyRot B3 rot
-toMoveRot 'G' rot = applyRot C1 rot
-toMoveRot 'H' rot = applyRot C2 rot
-toMoveRot 'I' rot = applyRot C3 rot
-toMoveRot  x  _   = error ("BoardLib.toMoveRot: could not find the move: <" ++ x:">")
+toMoveRot :: Word8 -> Rotation -> Move
+toMoveRot 0 rot = applyRot A1 rot
+toMoveRot 1 rot = applyRot A2 rot
+toMoveRot 2 rot = applyRot A3 rot
+toMoveRot 3 rot = applyRot B1 rot
+toMoveRot 4 rot = applyRot B2 rot
+toMoveRot 5 rot = applyRot B3 rot
+toMoveRot 6 rot = applyRot C1 rot
+toMoveRot 7 rot = applyRot C2 rot
+toMoveRot 8 rot = applyRot C3 rot
+toMoveRot x _   = error ("BoardLib.toMoveRot: could not find the move: <" ++ (show x) ++ ">")
 
 
 ---------------------------------------------------------------------
@@ -316,6 +317,3 @@ createNextBoardStateMap fp = do
                 setField 7 = b {  c1 = Just turn, turn = succ turn  }
                 setField 8 = b {  c2 = Just turn, turn = succ turn  }
                 setField 9 = b {  c3 = Just turn, turn = succ turn  }
-
-
-

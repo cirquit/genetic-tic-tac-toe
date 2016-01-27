@@ -8,10 +8,11 @@ import Data.Vector          (Vector(..), fromList)
 import Data.List            (foldl', genericLength, splitAt, sortBy)
 import Data.Ord             (comparing)
 import Control.Monad.Random (MonadRandom(), getRandomR)
+import Data.Word            (Word8(..))
 
 --------------------------------------------------------------------
 
-import Player (ascendingPieChart, getUniquePlayers, Player(..))
+import Player (ascendingPieChart, getUniquePlayers, Player(..), newPlayer)
 --------------------------------------------------------------------
 
 -- | roulette crossover with variable tactic
@@ -52,13 +53,13 @@ type CrossoverTactic = forall m. MonadRandom m => Player -> Player -> m (Player,
 onePointCrossover :: MonadRandom m => Player -> Player -> m (Player, Player)
 onePointCrossover p1 p2 = do
     percent <- getRandomR (0.0, 1.0)
-    let len  = genericLength (str p1) :: Double
+    let len  = genericLength (moves p1) :: Double
 
-        (p1A , p1B)  = splitAt (round (percent * len)) (str p1)
-        (p2A , p2B)  = splitAt (round (percent * len)) (str p2)
+        (p1A , p1B)  = splitAt (round (percent * len)) (moves p1)
+        (p2A , p2B)  = splitAt (round (percent * len)) (moves p2)
 
-        p3 = Player (p1A ++ p2B) 0 0 0 0 1
-        p4 = Player (p2A ++ p1B) 0 0 0 0 1
+        !p3 = newPlayer (p1A ++ p2B)
+        !p4 = newPlayer (p2A ++ p1B)
 
     return (p3, p4)
 
@@ -66,14 +67,14 @@ onePointCrossover p1 p2 = do
 --
 -- p1 =  AA AA AA AA AA
 -- p2 =  BB BB BB BB BB
-
+--
 -- random point generated = 3
-
+--
 -- length of the rest = 7
 -- second random point generated = 5
-
+--
 -- splitting at 3 and (3 + 5)
-
+--
 -- c1 =  AA AB BB BB AA
 -- c2 =  BB BA AA AA BB
 
@@ -82,18 +83,18 @@ twoPointCrossover p1 p2 = do
     point1 <- getRandomR (0.0, 1.0)
     point2 <- getRandomR (0.0, 1.0)
 
-    let len           = genericLength (str p1) :: Double
+    let len           = genericLength (moves p1) :: Double
 
-        (p1A, p1Rest) = splitAt (round (point1 * len)) (str p1)
-        (p2A, p2Rest) = splitAt (round (point1 * len)) (str p2)
+        (p1A, p1Rest) = splitAt (round (point1 * len)) (moves p1)
+        (p2A, p2Rest) = splitAt (round (point1 * len)) (moves p2)
 
         sublen        = genericLength (p1Rest) :: Double
 
         (p1B, p1C) = splitAt (round (point2 * sublen)) p1Rest
         (p2B, p2C) = splitAt (round (point2 * sublen)) p2Rest
 
-        p3 = Player (p1A ++ p2B ++ p1C) 0 0 0 0 1
-        p4 = Player (p2A ++ p1B ++ p2C) 0 0 0 0 1
+        !p3 = newPlayer (p1A ++ p2B ++ p1C)
+        !p4 = newPlayer (p2A ++ p1B ++ p2C)
 
     return (p3, p4)
 
@@ -110,12 +111,12 @@ twoPointCrossover p1 p2 = do
 -- c2 = BB AB AA BA AB
 
 uniformCrossover :: MonadRandom m => Player -> Player -> m (Player, Player)
-uniformCrossover p1 p2 = go ([],[]) (zip (str p1) (str p2))
+uniformCrossover p1 p2 = go ([],[]) (zip (moves p1) (moves p2))
 
-  where go :: MonadRandom m => (String, String) -> [(Char, Char)] -> m (Player, Player)
-        go (p3str, p4str)            [] = return (Player (reverse p3str) 0 0 0 0 1, Player (reverse p4str) 0 0 0 0 1)
-        go (p3str, p4str) ((c1, c2):xs) = do
+  where go :: MonadRandom m => ([Word8], [Word8]) -> [(Word8, Word8)] -> m (Player, Player)
+        go (!p3moves, !p4moves)            [] = return (newPlayer (reverse p3moves), newPlayer (reverse p4moves))
+        go (!p3moves, !p4moves) ((c1, c2):xs) = do
             (v :: Double) <- getRandomR (0.0, 1.0)
-            case v >= 0.5 of
-                True -> go (c1:p3str, c2:p4str) xs
-                _    -> go (c2:p3str, c1:p4str) xs
+            case v >= 0.1 of
+                True -> go (c1:p3moves, c2:p4moves) xs
+                _    -> go (c2:p3moves, c1:p4moves) xs

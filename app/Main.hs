@@ -1,3 +1,4 @@
+
 {-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns, ViewPatterns #-}
 
 module Main where
@@ -13,6 +14,7 @@ import System.Exit
 import Control.Concurrent
 import Control.Monad.Random
 import Data.Map as M (Map(..))
+import Data.Word (Word8(..))
 
 import Control.Parallel.Strategies
 
@@ -87,50 +89,37 @@ main = do
     let logger = mergeLogs [fLog, stdLog]
 
 -- create initial population
-    let g      = mkStdGen 134573983648723746
-        -- (g',_) = split g
-        -- population = flip evalRand g $ genIndividuals popsize stringlength
+    let g      = mkStdGen 13457398364872342
+        (g',_) = split g
+        population = flip evalRand g $ genIndividuals popsize stringlength
 
 -- start the evolution
-    evolution rotMap nextMMap [] generations g logger
+    evolution rotMap nextMMap population generations g logger
 
 -------------------------------------------------------------------------
 -- | Automatic evolution dependent on 'generations'
 --
 evolution :: Map Int (Int, Rotation) -> Map Int [Board] -> [Player] -> Int -> StdGen -> Logger -> IO ()
-evolution rotMap nextMMap accPop 0 _ log = mapM_ ((log <!!>) . str) (take 10 population) >> closeLog log
-evolution rotMap nextMMap accPop n g log = do
+evolution rotMap nextMMap pop 0 _ log = mapM_ ((log <!>) . moves) (take 10 pop) >> closeLog log
+evolution rotMap nextMMap pop n g log = do
 
     log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
 
     let strategy = parList rseq
-        newAccPop = flip evalRand g $ do
-            -- let parents = populationPlay vec hmap population `using` strategy
-            let curPop = genIndividuals popsize stringlength
-
-                curPopParents = map (playSingle rotMap nextMMap) curPop `using` strategy
-
-                parents = curPopParents ++ accPop
-
+        npop = flip evalRand g $ do
+            let !parents = map (playSingle rotMap nextMMap) pop `using` strategy
             children  <- rouletteCrossover uniformCrossover parents
             mutants   <- mutate delta beta children
-
-            -- let children' = populationPlay vec hmap children `using` strategy
-
-            let children' = map (playSingle rotMap nextMMap) children `using` strategy
-
+            let !children' = map (playSingle rotMap nextMMap) mutants `using` strategy
                 selected  = naturalselection tetha (parents ++ children')
-
-            return selected
-
---            repopulate selected popsize stringlength
+            repopulate selected popsize stringlength
 
     let (g',_) = split g
 
-    mapM_ (log <!>) (take 10 newAccPop)
-    mapM_ ((log <!!>) . str) (take 10 newAccPop)
+    mapM_ (log <!>) (take 10 npop)
+    mapM_ ((log <!>) . moves) (take 10 npop)
     
-    evolution rotMap nextMMap newAccPop (n-1) g' log
+    evolution rotMap nextMMap npop (n-1) g' log
 
 -----------------------------------------------------------------------------------
 -- ## Tests ##
@@ -171,12 +160,12 @@ playAI hmap player n = playAI' hmap emptyBoard player n
 
 crossoverTest :: IO ()
 crossoverTest = do
-    let p1 = Player "AAAAAAAAAA" 1  0 0 0   3
-        p2 = Player "BBBBBBBBBB" 2  0 0 0   5
-        p3 = Player "CCCCCCCCCC" 3  0 0 0   7
-        p4 = Player "DDDDDDDDDD" 10 0 0 0  11
-        p5 = Player "EEEEEEEEEE" 2  0 0 0 127
-        p6 = Player "FFFFFFFFFF" 6  0 0 0  67
+    let p1 = Player [0,0,0,0,0,0,0,0,0,0] 1  0 0 0   3
+        p2 = Player [1,1,1,1,1,1,1,1,1,1] 2  0 0 0   5
+        p3 = Player [2,2,2,2,2,2,2,2,2,2] 3  0 0 0   7
+        p4 = Player [3,3,3,3,3,3,3,3,3,3] 10 0 0 0  11
+        p5 = Player [4,4,4,4,4,4,4,4,4,4] 2  0 0 0 127
+        p6 = Player [5,5,5,5,5,5,5,5,5,5] 6  0 0 0  67
         g  = mkStdGen 311
 
         l = flip evalRand g $ rouletteCrossover onePointCrossover [p1,p2,p3,p4,p5,p6]
@@ -184,12 +173,12 @@ crossoverTest = do
 
 naturalselectionTest :: IO ()
 naturalselectionTest = do
-    let p1 = Player "AAAAAAAAAA"  31  0 0 0  7   -- 4.428
-        p2 = Player "BBBBBBBBBB"  30  0 0 0  8   -- 3.75
-        p3 = Player "CCCCCCCCCC"  35  0 0 0  9   -- 3.88
-        p4 = Player "DDDDDDDDDD"  10  0 0 0 11   -- 0.9
-        p5 = Player "EEEEEEEEEE" 114  0 0 0 10   -- 11.4
-        p6 = Player "FFFFFFFFFF"  60  0 0 0 67   -- 0.89
+    let p1 = Player [0,0,0,0,0,0,0,0,0,0]  31  0 0 0  7   -- 4.428
+        p2 = Player [1,1,1,1,1,1,1,1,1,1]  30  0 0 0  8   -- 3.75
+        p3 = Player [2,2,2,2,2,2,2,2,2,2]  35  0 0 0  9   -- 3.88
+        p4 = Player [3,3,3,3,3,3,3,3,3,3]  10  0 0 0 11   -- 0.9
+        p5 = Player [4,4,4,4,4,4,4,4,4,4] 114  0 0 0 10   -- 11.4
+        p6 = Player [5,5,5,5,5,5,5,5,5,5]  60  0 0 0 67   -- 0.89
 
         popsize = 6
         tetha = 0.7
@@ -241,7 +230,7 @@ customEvolution vec population g log = do
            let (g',_) = split g
            log <!> newpop
            customEvolution vec newpop g' log
-        "p" -> mapM_ ((log <!>) . str) (take 10 population) >> customEvolution vec population g log
+        "p" -> mapM_ ((log <!>) . moves) (take 10 population) >> customEvolution vec population g log
         _   -> mapM_ ( log <!>)        (take 10 population)
 -}
 
@@ -279,7 +268,7 @@ safeExit population vec tid = do
            putStrLn ("Individual Nr." ++ show n)
            let individual = population !! n
            putStrLn ("Fitness in %, Wins + Ties, Total Games: " ++ show (ratio individual) ++ ", " ++ show (fitness individual) ++ ", " ++ show (games individual))
-           putStrLn ("Chromosome: " ++ str individual)
+           putStrLn ("Chromosome: " ++ moves individual)
            putStr "Command: "
            input <- getLine
            loop population vec input

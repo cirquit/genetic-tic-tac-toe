@@ -7,8 +7,9 @@ import Data.List   (foldl', genericLength, splitAt, sortBy)
 import Data.Ord    (comparing)
 import System.Random
 import Control.Monad.Random (MonadRandom(), getRandomR, getRandomRs)
+import Data.Word   (Word8(..))
 
-import Player     (Player(..), sortByDscRatio)
+import Player     (Player(..), sortByDscRatio, newPlayer)
 import Board.Types (Board(..), Move(..), Value(..), Result(..))
 import Crossover
 
@@ -17,9 +18,9 @@ import Crossover
 --                                 |
 genIndividual :: MonadRandom m => Int -> m Player
 genIndividual len = do
-  stream <- getRandomRs ('A', 'I')
+  stream <- getRandomRs (0, 8)
   let chrom = take len stream
-  return $ Player chrom 0 0 0 0 1
+  return $ newPlayer chrom
 
 
 -- |                        Population size  Chromosome length
@@ -29,8 +30,8 @@ genIndividual len = do
 genIndividuals :: MonadRandom m => Int  -> Int -> m [Player]
 genIndividuals = go []
     where go :: MonadRandom m => [Player] -> Int -> Int -> m [Player]
-          go acc    0   _ = return acc
-          go acc size len = do
+          go !acc    0   _ = return acc
+          go !acc size len = do
               res <- genIndividual len
               go (res : acc) (size - 1) len
 
@@ -59,11 +60,11 @@ mutate = go []
 --                                                |
           mutateP :: MonadRandom m => Player -> Double -> m Player
           mutateP (Player l turns wins ties losses games) = go ([], turns, wins, ties, losses, games) l
-            where go :: MonadRandom m => (String, Int, Int, Int, Int, Int) -> String -> Double -> m Player
+            where go :: MonadRandom m => ([Word8], Int, Int, Int, Int, Int) -> [Word8] -> Double -> m Player
                   go (!acc, turns, wins, ties, losses, games)     []    _ = return $ Player (reverse acc) turns wins ties losses games
                   go (!acc, turns, wins, ties, losses, games) (x:xs) beta = do
                       v <- getRandomR (0.0, 1.0)
-                      c <- getRandomR ('A', 'I')
+                      c <- getRandomR (0, 8)
                       case beta >= v of
                           True  -> go ((c:acc), turns, wins, ties, losses, games) xs beta
                           False -> go ((x:acc), turns, wins, ties, losses, games) xs beta
@@ -77,7 +78,8 @@ repopulate :: MonadRandom m => [Player] -> Int -> Int -> m [Player]
 repopulate players size chromlen = do
     let popsize = size - length players
     pop <- genIndividuals popsize chromlen
-    return $ players ++ pop
+    let !npop = players ++ pop
+    return $ npop
 
 -- | θ = percent to be removed by natural selection
 -- 
