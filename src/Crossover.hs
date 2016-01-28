@@ -4,11 +4,13 @@ module Crossover where
 
 --------------------------------------------------------------------
 
-import Data.Vector          (Vector(..), fromList)
-import Data.List            (foldl', genericLength, splitAt, sortBy)
-import Data.Ord             (comparing)
-import Control.Monad.Random (MonadRandom(), getRandomR)
-import Data.Word            (Word8(..))
+import Data.Vector           (Vector(..), fromList)
+import Data.List             (foldl', genericLength, splitAt, sortBy)
+import Data.Ord              (comparing)
+import Control.Monad         (zipWithM)
+import Control.Monad.Random  (MonadRandom(), getRandomR)
+import System.Random.Shuffle (shuffleM)
+import Data.Word             (Word8(..))
 
 --------------------------------------------------------------------
 
@@ -24,9 +26,9 @@ import Player (ascendingPieChart, getUniquePlayers, Player(..), newPlayer)
 -- Creates a pie chart based on the overall wins / games played ratio
 -- TODO think about the logic, the players get picked without removing them from the list
 
-rouletteCrossover :: MonadRandom r => CrossoverTactic -> [Player] -> r [Player]
-rouletteCrossover tactic players = go [] (length players) ascPieChart
-  where
+rouletteTacticCrossover :: MonadRandom r => CrossoverTactic -> [Player] -> r [Player]
+rouletteTacticCrossover tactic players = go [] (length players) ascPieChart
+    where
         ascPieChart = ascendingPieChart players
 
         go :: MonadRandom m => [Player] -> Int -> [(Player, Double)] -> m [Player]
@@ -36,6 +38,12 @@ rouletteCrossover tactic players = go [] (length players) ascPieChart
             (p1, p2) <- getUniquePlayers l
             (c1, c2) <- tactic p1 p2
             go (c1:c2:acc) (count-2) l
+
+
+randomTacticCrossover :: MonadRandom r => CrossoverTactic -> [Player] -> r [Player]
+randomTacticCrossover tactic players = do
+    shuffledPlayers <- shuffleM players
+    zipWithM (\x y -> (tactic x y) >>= return . fst) players shuffledPlayers
 
 
 type CrossoverTactic = forall m. MonadRandom m => Player -> Player -> m (Player, Player)
@@ -111,12 +119,12 @@ twoPointCrossover p1 p2 = do
 -- c2 = BB AB AA BA AB
 
 uniformCrossover :: MonadRandom m => Player -> Player -> m (Player, Player)
-uniformCrossover p1 p2 = go ([],[]) (zip (moves p1) (moves p2))
+uniformCrossover parent1 parent2 = go ([],[]) (zip (moves parent1) (moves parent2))
 
   where go :: MonadRandom m => ([Word8], [Word8]) -> [(Word8, Word8)] -> m (Player, Player)
-        go (!p3moves, !p4moves)            [] = return (newPlayer (reverse p3moves), newPlayer (reverse p4moves))
-        go (!p3moves, !p4moves) ((c1, c2):xs) = do
+        go (!p1moves, !p2moves)            [] = return (newPlayer (reverse p1moves), newPlayer (reverse p2moves))
+        go (!p1moves, !p2moves) ((c1, c2):xs) = do
             (v :: Double) <- getRandomR (0.0, 1.0)
-            case v >= 0.1 of
-                True -> go (c1:p3moves, c2:p4moves) xs
-                _    -> go (c2:p3moves, c1:p4moves) xs
+            case v >= 0.5 of
+                True -> go (c1:p1moves, c2:p2moves) xs
+                _    -> go (c2:p1moves, c1:p2moves) xs

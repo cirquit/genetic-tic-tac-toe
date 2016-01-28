@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns #-}
+{-# LANGUAGE RecordWildCards, PatternSynonyms, BangPatterns, ViewPatterns #-}
 
 module Player where
 
@@ -9,6 +9,7 @@ import Debug.Trace      (trace)
 import Data.List        (foldl', genericLength, sortBy)
 import Data.Ord         (comparing)
 import Data.Function    (on)
+import System.Random.Shuffle (shuffleM)
 import Control.Monad.Random (MonadRandom(), getRandomR)
 import Data.Map as M (insert, Map(..), empty, lookup)
 import Data.Word (Word8(..))
@@ -32,19 +33,22 @@ data Player = Player { moves       :: [Word8]     -- moves encoded as Chars for 
                      , wins        :: Int        -- total wins
                      , ties        :: Int        -- total ties
                      , losses      :: Int
+                     , played      :: Bool
                      , games       :: Int }      -- amount of games played
-  deriving Eq
+
+instance Eq Player where
+  p1 == p2 = (moves p1) == (moves p2)
 
 
 instance Show Player where
-    show p@(Player moves turnsLived wins ties losses games) = 
+    show p@(Player moves turnsLived wins ties losses played games) = 
         unwords [ "# Player"           , show $ take 10 moves
               --  , "# Avg turns lived:" , percent
                 , "# Wins:"            , show wins
                 , "# Ties:"            , show ties
-                , "# Los:"             , show losses
-                , "# Fits:"            , show (fitnessRatio p)
+                , "# Loss:"             , show losses
                 , "# Games:"           , show games
+                , "# Fits:"            , show (fitnessRatio p)
                 ]
       where percent = take 6 $ show ((fromIntegral turnsLived) / (fromIntegral games))
 --------------------------------------------------------------------
@@ -53,11 +57,11 @@ instance Show Player where
 -- | shortcut to increment turnsLived count
 --
 newPlayer :: [Word8] -> Player
-newPlayer moves = Player moves 0 0 0 0 1
+newPlayer moves = Player moves 0 0 0 0 False 1
 
 
 newSPlayer :: String -> Player
-newSPlayer moves = Player (map readW8 moves) 0 0 0 0 1
+newSPlayer moves = Player (map readW8 moves) 0 0 0 0 False 1
     where
         readW8 :: Char -> Word8
         readW8 = read . (:[])
@@ -73,6 +77,13 @@ addTurn p = p { turnsLived = turnsLived p + 1 }
 --
 addGame :: Player -> Player
 addGame p = p { games = games p + 1 }
+
+--------------------------------------------------------------------
+-- | shortcut to decrement game count
+--
+rmGame :: Player -> Player
+rmGame p = p { games = games p - 1 }
+
 
 --------------------------------------------------------------------
 -- | shortcut to increment tie count
@@ -105,7 +116,7 @@ getMove (Player str _ _) i = toMove (str !! i)
 -}
 
 getMoveRot :: Player -> Int -> Rotation -> Move
-getMoveRot (Player moves _ _ _ _ _) i rot = toMoveRot (moves !! i) rot
+getMoveRot (Player moves _ _ _ _ _ _) i rot = toMoveRot (moves !! i) rot
 
 --------------------------------------------------------------------
 -- | calculates the next move for a single player based on the current board state
@@ -126,7 +137,8 @@ nextMove hmap player board = (move `isValidOn` board, move, move `playOn` board)
 --
 --   
 playSingle :: Map Int (Int, Rotation) -> Map Int [Board] -> Player -> Player
-playSingle rotMap nextMMap p = p''
+playSingle _      _        p@Player{ played = True } = p
+playSingle rotMap nextMMap p                         = p'' { played = True }
     where 
 
         (Just round1Boards) = M.lookup (hashBoard emptyBoard) nextMMap
@@ -153,11 +165,11 @@ playSingle rotMap nextMMap p = p''
                           (True, _, board') -> 
                               case gameState board' of
                                   Ongoing     -> Right (p, board')
-                                  (Win _)     -> Left (addWin $ p)-- Left (addFutureLosses board' . addWin $ p)
-                                  Tie         -> Left (addTie $ p)-- Left (addFutureLosses board' . addTie $ p)
-                          (False, _, _) -> Left (addLoss $ p) -- Left (addFutureLosses board . addLoss $ p)
+                                  (Win _)     -> Left (addWin p)-- Left (addFutureLosses board' . addWin $ p)
+                                  Tie         -> Left (addTie p)-- Left (addFutureLosses board' . addTie $ p)
+                          (False, _, _) -> Left (rmGame p) -- Left (addLoss $ p) -- Left (addFutureLosses board . addLoss $ p)
 
-
+{-
                 addFutureLosses :: Board -> Player -> Player
                 addFutureLosses b p = p { losses = futureLosses + losses p, games = futureLosses + games p }
                     where
@@ -171,6 +183,7 @@ playSingle rotMap nextMMap p = p''
                               where go n m
                                        | 2 < (n - m) = (n - m) * (go n (m + 2))
                                        | otherwise   = 2
+-}
 
 ---------------------------------------------------------------------
 -- | loop for two players to play a game
@@ -189,14 +202,14 @@ play hmap p1 p2 board =
             case nextMove hmap p1 b of
                 (True, _, b') ->
                     case gameState b' of
-                        Ongoing -> playGame hmap p2 (addTurn p1) b'
-                        Tie     -> ((addTie . addTurn) p1, addTie  p2, Tie  )
-                        (Win X) -> ((addWin . addTurn) p1, addLoss p2, Win X)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
-                        (Win O) -> ((addWin . addTurn) p2, addLoss p1, Win O)     -- 
+                        Ongoing -> playGame hmap p2 p1 b'
+                        Tie     -> (addTie p1, addTie  p2, Tie  )
+                        (Win X) -> (addWin p1, addLoss p2, Win X)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        (Win O) -> (addWin p2, addLoss p1, Win O)     -- 
                 (False, _, b')  -> 
                     case turn of
-                        X -> (       p1,  addTie p2, Win O)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
-                        O -> (addTie p2,         p1, Win X)     -- 
+                        X -> (        p1,  addLoss p2, Win O)     -- to ensure that all p1 and p2 are the "starting" p1 and p2
+                        O -> (addLoss p2,          p1, Win X)     -- 
 
 ---------------------------------------------------------------------
 -- | loop for two players to play a game with IO
@@ -239,7 +252,7 @@ populationPlay v m (p1:ps) = p1' : populationPlay v m ps'
 
           go :: Vector Board -> Map Int (Int, Rotation) -> Player -> [Player] -> [Player] -> (Player, [Player])
           go v m p1     []  acc  = (p1, reverse acc)
-          go v m p1 (p2:ps) acc  = go v m p1' ps (p2':acc)
+          go v m p1 (p2:ps) !acc  = go v m p1' ps (p2':acc)
               where
                    (p1', p2') = playAllBoards (v, V.length v - 1) m p1 p2
 
@@ -301,7 +314,12 @@ sortByDscRatio = sortBy (flip (comparing fitnessRatio))
 
 
 fitnessRatio :: Player -> Double
-fitnessRatio p = toD (3 * wins p + 2 * ties p + losses p) / gamesD
+fitnessRatio p =  gamesD -- (gamesD - toD (losses p)) / gamesD 
+
+-- gamesD * toD ( wins p) * toD (ties p) / 10000000
+
+--      | gamesD < 827 = gamesD + toD (wins p) + toD (ties p)
+--      | otherwise    = gamesD + toD (wins p) * 4 + toD (ties p) * 2
     where
           -- (gamesD - toD (losses p)) / gamesD -- winRatio -- * turnsRatio
        --   winRatio = toD (3 * wins p + 2 * ties p + losses p) / gamesD

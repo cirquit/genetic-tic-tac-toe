@@ -59,15 +59,15 @@ mutate = go []
 --                                                β
 --                                                |
           mutateP :: MonadRandom m => Player -> Double -> m Player
-          mutateP (Player l turns wins ties losses games) = go ([], turns, wins, ties, losses, games) l
-            where go :: MonadRandom m => ([Word8], Int, Int, Int, Int, Int) -> [Word8] -> Double -> m Player
-                  go (!acc, turns, wins, ties, losses, games)     []    _ = return $ Player (reverse acc) turns wins ties losses games
-                  go (!acc, turns, wins, ties, losses, games) (x:xs) beta = do
+          mutateP (Player l turns wins ties losses played games) = go ([], turns, wins, ties, losses, played, games) l
+            where go :: MonadRandom m => ([Word8], Int, Int, Int, Int, Bool, Int) -> [Word8] -> Double -> m Player
+                  go (!acc, turns, wins, ties, losses, played, games)     []    _ = return $ Player (reverse acc) turns wins ties losses played games
+                  go (!acc, turns, wins, ties, losses, played, games) (x:xs) beta = do
                       v <- getRandomR (0.0, 1.0)
                       c <- getRandomR (0, 8)
                       case beta >= v of
-                          True  -> go ((c:acc), turns, wins, ties, losses, games) xs beta
-                          False -> go ((x:acc), turns, wins, ties, losses, games) xs beta
+                          True  -> go ((c:acc), turns, wins, ties, losses, played, games) xs beta
+                          False -> go ((x:acc), turns, wins, ties, losses, played, games) xs beta
 
 -- | fills up the player list with new individuals up to the population size
 --

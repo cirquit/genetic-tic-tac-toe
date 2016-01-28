@@ -13,6 +13,7 @@ import System.Posix.Signals
 import System.Exit
 import Control.Concurrent
 import Control.Monad.Random
+import System.Random.Shuffle (shuffleM)
 import Data.Map as M (Map(..))
 import Data.Word (Word8(..))
 
@@ -62,12 +63,12 @@ import SimpleLogger
 
 -- Fill up the remaining spots
 
-popsize      = 500     -- populationsize
+popsize      = 1000    -- populationsize
 stringlength = 827     -- possible boardstates
 delta        = 0.10    -- chance to mutate
 beta         = 0.05    -- percent of the string to mutate
-tetha        = 0.7     -- percent to be removed by natural selection
-generations  = 500
+tetha        = 0.8     -- percent to be removed by natural selection
+generations  = 3900
 
 -------------------------------------------------------------------------
 -- | Main entry point
@@ -80,7 +81,7 @@ main = do
     
     nextMMap <- createNextBoardStateMap "lib/sortedCombos827.txt"
 
-    -- vec <- V.fromList <$> createBoardStatesFrom "lib/sortedCombos827.txt"
+    vec <- V.fromList <$> createBoardStatesFrom "lib/sortedCombos827.txt"
 
 -- set up logger
     time   <- getTime
@@ -94,32 +95,41 @@ main = do
         population = flip evalRand g $ genIndividuals popsize stringlength
 
 -- start the evolution
-    evolution rotMap nextMMap population generations g logger
+    evolution rotMap nextMMap vec population generations g logger
 
 -------------------------------------------------------------------------
 -- | Automatic evolution dependent on 'generations'
 --
-evolution :: Map Int (Int, Rotation) -> Map Int [Board] -> [Player] -> Int -> StdGen -> Logger -> IO ()
-evolution rotMap nextMMap pop 0 _ log = mapM_ ((log <!>) . moves) (take 10 pop) >> closeLog log
-evolution rotMap nextMMap pop n g log = do
+evolution :: Map Int (Int, Rotation) -> Map Int [Board] -> Vector Board -> [Player] -> Int -> StdGen -> Logger -> IO ()
+evolution rotMap nextMMap vec pop 0 _ log = mapM_ ((log <!>) . moves) (take 10 pop) >> closeLog log
+evolution rotMap nextMMap vec pop n g log = do
 
     log <!!> unwords ["Generation(s) left to live: ", show n, "\n"]
 
     let strategy = parList rseq
         npop = flip evalRand g $ do
+
             let !parents = map (playSingle rotMap nextMMap) pop `using` strategy
-            children  <- rouletteCrossover uniformCrossover parents
+          
+            --let !parents = populationPlay vec  rotMap pop `using` strategy
+
+            children  <- randomTacticCrossover uniformCrossover parents
+          
             mutants   <- mutate delta beta children
+          
             let !children' = map (playSingle rotMap nextMMap) mutants `using` strategy
+
+            -- let !children' = populationPlay vec  rotMap mutants `using` strategy
                 selected  = naturalselection tetha (parents ++ children')
+          
             repopulate selected popsize stringlength
 
     let (g',_) = split g
 
     mapM_ (log <!>) (take 10 npop)
-    mapM_ ((log <!>) . moves) (take 10 npop)
+    mapM_ ((log <!!>) . (>>= show) . moves) (take 3 npop)
     
-    evolution rotMap nextMMap npop (n-1) g' log
+    evolution rotMap nextMMap vec npop (n-1) g' log
 
 -----------------------------------------------------------------------------------
 -- ## Tests ##
@@ -160,25 +170,25 @@ playAI hmap player n = playAI' hmap emptyBoard player n
 
 crossoverTest :: IO ()
 crossoverTest = do
-    let p1 = Player [0,0,0,0,0,0,0,0,0,0] 1  0 0 0   3
-        p2 = Player [1,1,1,1,1,1,1,1,1,1] 2  0 0 0   5
-        p3 = Player [2,2,2,2,2,2,2,2,2,2] 3  0 0 0   7
-        p4 = Player [3,3,3,3,3,3,3,3,3,3] 10 0 0 0  11
-        p5 = Player [4,4,4,4,4,4,4,4,4,4] 2  0 0 0 127
-        p6 = Player [5,5,5,5,5,5,5,5,5,5] 6  0 0 0  67
+    let p1 = Player [0,0,0,0,0,0,0,0,0,0] 1  0 0 0 False   3
+        p2 = Player [1,1,1,1,1,1,1,1,1,1] 2  0 0 0 False   5
+        p3 = Player [2,2,2,2,2,2,2,2,2,2] 3  0 0 0 False   7
+        p4 = Player [3,3,3,3,3,3,3,3,3,3] 10 0 0 0 False  11
+        p5 = Player [4,4,4,4,4,4,4,4,4,4] 2  0 0 0 False 127
+        p6 = Player [5,5,5,5,5,5,5,5,5,5] 6  0 0 0 False  67
         g  = mkStdGen 311
 
-        l = flip evalRand g $ rouletteCrossover onePointCrossover [p1,p2,p3,p4,p5,p6]
+        l = flip evalRand g $ randomTacticCrossover uniformCrossover [p1,p2,p3,p4,p5,p6]
     mapM_ print l
 
 naturalselectionTest :: IO ()
 naturalselectionTest = do
-    let p1 = Player [0,0,0,0,0,0,0,0,0,0]  31  0 0 0  7   -- 4.428
-        p2 = Player [1,1,1,1,1,1,1,1,1,1]  30  0 0 0  8   -- 3.75
-        p3 = Player [2,2,2,2,2,2,2,2,2,2]  35  0 0 0  9   -- 3.88
-        p4 = Player [3,3,3,3,3,3,3,3,3,3]  10  0 0 0 11   -- 0.9
-        p5 = Player [4,4,4,4,4,4,4,4,4,4] 114  0 0 0 10   -- 11.4
-        p6 = Player [5,5,5,5,5,5,5,5,5,5]  60  0 0 0 67   -- 0.89
+    let p1 = Player [0,0,0,0,0,0,0,0,0,0]  31  0 0 0 False  7   -- 4.428
+        p2 = Player [1,1,1,1,1,1,1,1,1,1]  30  0 0 0 False  8   -- 3.75
+        p3 = Player [2,2,2,2,2,2,2,2,2,2]  35  0 0 0 False  9   -- 3.88
+        p4 = Player [3,3,3,3,3,3,3,3,3,3]  10  0 0 0 False 11   -- 0.9
+        p5 = Player [4,4,4,4,4,4,4,4,4,4] 114  0 0 0 False 10   -- 11.4
+        p6 = Player [5,5,5,5,5,5,5,5,5,5]  60  0 0 0 False 67   -- 0.89
 
         popsize = 6
         tetha = 0.7
@@ -187,6 +197,20 @@ naturalselectionTest = do
         l = naturalselection tetha [p1,p2,p3,p4,p5,p6]
         g = mkStdGen 12345
         l' = flip evalRand g $ repopulate l popsize stringlength
+    mapM_ print l'
+
+
+shuffleTest :: IO ()
+shuffleTest = do
+    let p1 = Player [0,0,0,0,0,0,0,0,0,0]  31  0 0 0 False  7   -- 4.428
+        p2 = Player [1,1,1,1,1,1,1,1,1,1]  30  0 0 0 False  8   -- 3.75
+        p3 = Player [2,2,2,2,2,2,2,2,2,2]  35  0 0 0 False  9   -- 3.88
+        p4 = Player [3,3,3,3,3,3,3,3,3,3]  10  0 0 0 False 11   -- 0.9
+        p5 = Player [4,4,4,4,4,4,4,4,4,4] 114  0 0 0 False 10   -- 11.4
+        p6 = Player [5,5,5,5,5,5,5,5,5,5]  60  0 0 0 False 67   -- 0.89
+
+        g = mkStdGen 123545
+        l' = flip evalRand g $ shuffleM [p1, p2, p3, p4, p5, p6]
     mapM_ print l'
 
 singlePlayerTest :: IO Player
